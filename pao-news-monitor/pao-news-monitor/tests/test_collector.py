@@ -288,3 +288,19 @@ def test_pattern_first_finds_saved_as_first_scan(monkeypatch, tmp_path):
     data = json.loads((tmp_path / "data" / "local.json").read_text())
     fresh = [i for i in data["items"].values() if "annual-conference" in i["url"]]
     assert len(fresh) == 1 and fresh[0]["is_baseline"] is False and s["new"] == 1
+
+
+def test_own_brief_emails_are_skipped():
+    paos = [pao(), pao(id="acca", name="Association of Chartered Certified Accountants", abbr="ACCA", website="https://accaglobal.com")]
+    body = "This brief covers ICAI and ACCA news this week."
+    by_subject = make_email("CAPA News Monitor <capanewsapi@gmail.com>", "CAPA weekly intelligence brief: 11 Oct 2026 – 18 Oct 2026", body)
+    assert email_inbox.parse_message(by_subject, paos) == []
+    assert email_inbox.parse_message(make_email("boss@capa-apac.org", "Fwd: CAPA Weekly recap: 26 Oct – 1 Nov 2026", body), paos) == []
+    assert email_inbox.parse_message(make_email("capanewsapi@gmail.com", "Anything", body), paos, own_address="CapaNewsApi@gmail.com") == []
+    m = EmailMessage()
+    m["From"], m["Subject"], m["X-PAO-Monitor"] = "x@gmail.com", "Weekly news", "brief"
+    m.set_content(body)
+    assert email_inbox.parse_message(m.as_bytes(), paos) == []
+    # a real email that mentions CAPA is still collected
+    real = make_email("press@accaglobal.com", "ACCA and CAPA sign a partnership", body)
+    assert [i.pao_id for i in email_inbox.parse_message(real, paos, own_address="capanewsapi@gmail.com")] == ["acca"]

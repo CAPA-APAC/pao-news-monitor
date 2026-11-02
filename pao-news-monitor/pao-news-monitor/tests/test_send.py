@@ -46,6 +46,7 @@ def test_sends_bcc_and_records(tmp_path):
     msg, to = FakeSMTP.sent[0]
     assert to == ["bot@gmail.com", "p0@x.org", "p1@x.org", "p2@x.org"]          # paused person skipped
     assert "Bcc" not in msg and msg["To"] == "CAPA News Monitor <bot@gmail.com>" and msg["Reply-To"] == "boss@capa-apac.org"
+    assert msg["X-PAO-Monitor"] == "brief"                                         # so the inbox reader skips it
     assert msg["Subject"] == "CAPA weekly intelligence brief: 12 Oct 2026 – 19 Oct 2026"
     html = msg.get_body(("html",)).get_content()
     assert "Draft written by AI" not in html and "reviewed by CAPA staff" in html   # staff banner removed

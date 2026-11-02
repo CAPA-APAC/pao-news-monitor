@@ -2,6 +2,12 @@
 
 Plain-language log of what changed and why, for anyone who isn't reading the code. One entry per fix or feature, newest first. See the User Guide for how to use each thing; see `_bmad-output/.../addendum.md` for technical detail.
 
+## 2026-11-02 — The monitor no longer collects its own briefs from the inbox
+- The brief is emailed To the monitor's own inbox (everyone else is in BCC). The daily inbox check then picked it up as an "email" item under every PAO it mentions, so the recap listed "CAPA weekly intelligence brief" over and over.
+- The inbox check now skips the monitor's own briefs: recognised by a hidden header the sender adds, the brief's subject line (also when someone forwards or replies to it), or coming from the monitor's own address. Real emails that mention CAPA are still collected.
+- The recap also leaves out any earlier brief that is already in the tracker.
+- Needs `supabase/update-20.sql` run once: it hides the copies already collected (Show: Removed brings them back).
+
 ## 2026-11-02 — The brief becomes a recap in CAPA's newsletter layout; a cleaner website
 - **New recap layout** (from the CAPA newsletter template): the CAPA banner, the date and a big title ("Weekly recap", or "Daily recap" for one day), then **Highlight 1** and **Highlight 2**, **Other key news** down the right, and **Also worth knowing** underneath. The same layout is used on the Weekly Brief page, in Copy for email, in Download Word and in the email that goes to the mailing list.
 - **No footnotes or numbers**: every story's title is the link to its page.
