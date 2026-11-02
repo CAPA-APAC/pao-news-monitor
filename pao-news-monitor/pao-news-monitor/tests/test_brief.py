@@ -270,3 +270,11 @@ def test_removed_items_stay_out_of_the_brief(tmp_path):
     store.data["items"]["a"]["removed_at"] = "2026-10-17T00:00:00+00:00"
     got = {i["id"] for i in brief.gather(store, NOW - __import__("datetime").timedelta(days=7))}
     assert "a" not in got and "b" in got
+
+
+def test_earlier_briefs_from_the_inbox_stay_out(tmp_path):
+    store = make_store(tmp_path)
+    store.data["items"]["own"] = dict(store.data["items"]["a"], id="own", source="email",
+                                      title="CAPA weekly intelligence brief: 11 Oct 2026 – 18 Oct 2026")
+    got = {i["id"] for i in brief.gather(store, NOW - __import__("datetime").timedelta(days=7))}
+    assert "own" not in got and "a" in got

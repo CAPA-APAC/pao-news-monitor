@@ -254,6 +254,7 @@ def build_messages(brief, recipients, sender):
         if brief.get("send_requested_by"):
             m["Reply-To"] = brief["send_requested_by"]
         m["Message-ID"] = make_msgid(domain=sender.split("@")[-1])
+        m["X-PAO-Monitor"] = "brief"        # the inbox reader skips its own briefs (collector/email_inbox.py)
         m.set_content(text_body)
         m.add_alternative(html_body, subtype="html")
         if banner:   # the banner travels inside the email, so it shows without loading images from the web

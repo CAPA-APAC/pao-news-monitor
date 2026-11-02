@@ -8,6 +8,11 @@ Each email is matched to a PAO by:
   1. the sender's domain matching the PAO's website domain, otherwise
   2. the PAO's full name or abbreviation appearing in the subject/body.
 Emails that match nobody go to the "Unmatched emails" section.
+
+The monitor's own briefs are skipped: the brief is emailed To the same inbox (everyone else is in BCC),
+and it names many PAOs, so without this it would come back as an "email" item under each of them.
+They are recognised by the X-PAO-Monitor header the sender adds, the brief's subject line (also when
+someone forwards or replies to it), or being sent from the monitor's own address.
 """
 import email
 import imaplib
@@ -26,6 +31,14 @@ SOURCE = "email"
 UNMATCHED_ID = "_unmatched_email"
 MAX_MESSAGES = 300
 FIRST_RUN_DAYS = 35
+OWN_HEADER = "X-PAO-Monitor"
+OWN_SUBJECT = re.compile(r"^\s*((re|fwd?|fw)\s*:\s*)*CAPA\b.*\b(intelligence brief|recap)\b", re.I)
+
+
+def is_own_brief(msg, subject, sender, own_address=""):
+    """The monitor's own brief coming back into its inbox (or a forward / reply of it)."""
+    return bool(msg.get(OWN_HEADER) or OWN_SUBJECT.match(subject or "")
+                or (own_address and sender.strip().lower() == own_address.strip().lower()))
 
 
 def _decode(value):
@@ -73,10 +86,12 @@ def match_paos(sender, subject, body, paos):
     return hits
 
 
-def parse_message(raw, paos):
+def parse_message(raw, paos, own_address=""):
     msg = email.message_from_bytes(raw)
     subject = clean(_decode(msg.get("Subject"))) or "(no subject)"
     from_name, sender = parseaddr(_decode(msg.get("From")))
+    if is_own_brief(msg, subject, sender, own_address):
+        return []
     msgid = (msg.get("Message-ID") or "").strip()
     try:
         date = parsedate_to_datetime(msg.get("Date"))
@@ -106,7 +121,7 @@ def collect(paos, since=None):
         return overall, []
     since = since or (now_utc() - timedelta(days=FIRST_RUN_DAYS))
     since = since - timedelta(days=2)  # small overlap; duplicates are ignored
-    items = []
+    items, skipped = [], 0
     try:
         imap = imaplib.IMAP4_SSL("imap.gmail.com", 993)
         imap.login(address, password)
@@ -118,11 +133,13 @@ def collect(paos, since=None):
             if status != "OK" or not parts or not isinstance(parts[0], tuple):
                 continue
             try:
-                items += parse_message(parts[0][1], paos)
+                got = parse_message(parts[0][1], paos, own_address=address)
+                skipped += not got
+                items += got
             except Exception as e:  # noqa: BLE001
                 log.info("email %s parse failed: %s", num, e)
         imap.logout()
-        overall.message = f"Read {len(ids)} email(s) since {since.date()}"
+        overall.message = f"Read {len(ids)} email(s) since {since.date()}" + (f"; skipped {skipped} of the monitor's own brief(s)" if skipped else "")
     except imaplib.IMAP4.error as e:
         overall.ok = False
         overall.message = f"Gmail login/read failed: {clean(str(e), 200)} (check the app password)"

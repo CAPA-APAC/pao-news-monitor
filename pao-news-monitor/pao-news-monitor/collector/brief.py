@@ -84,11 +84,18 @@ def effective(item):
     return item.get("relevance") or item.get("ai_relevance")
 
 
+def own_brief(item):
+    """An earlier brief that came back through the email inbox: never news."""
+    from .email_inbox import OWN_SUBJECT
+    return item.get("source") == "email" and bool(OWN_SUBJECT.match(item.get("title") or ""))
+
+
 def gather(store, since):
     since_iso = iso(since)
     items = store.items_since(since_iso)
     # Low and No relevance stay in the tracker only
-    items = [i for i in items if not i.get("is_baseline") and effective(i) not in ("low", "none") and in_period(i, since_iso)]
+    items = [i for i in items if not i.get("is_baseline") and effective(i) not in ("low", "none") and in_period(i, since_iso)
+             and not own_brief(i)]
     # same story found twice (e.g. two Google News searches): keep one, preferring a reviewed one
     items.sort(key=lambda i: (i.get("relevance") in ("high", "medium"), effective(i) in ("high", "medium"), i.get("source") != "google_news"), reverse=True)
     seen, unique = set(), []
