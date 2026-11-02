@@ -95,7 +95,7 @@
       ]);
       for (const r of [paos, health, runs]) if (r.error) throw r.error;
       const BASE = "id,pao_id,source,title,url,published_at,snippet,source_name,language,is_baseline,first_seen_at,relevance,category,notes,reviewed_by,reviewed_at";
-      const tries = [BASE + ",kind,ai_summary,ai_themes,removed_at,removed_by,ai_relevance,ai_relevance_reason", BASE + ",kind,ai_summary,ai_themes,removed_at,removed_by", BASE + ",kind,ai_summary,ai_themes", BASE + ",kind", BASE];   // newer columns first; older databases fall back
+      const tries = [BASE + ",kind,ai_summary,ai_themes,removed_at,removed_by,ai_relevance,ai_relevance_reason,original_title", BASE + ",kind,ai_summary,ai_themes,removed_at,removed_by,ai_relevance,ai_relevance_reason", BASE + ",kind,ai_summary,ai_themes,removed_at,removed_by", BASE + ",kind,ai_summary,ai_themes", BASE + ",kind", BASE];   // newer columns first; older databases fall back
       let cols = tries.shift();
       const items = [];
       for (let from = 0; ; from += 1000) {
@@ -278,6 +278,7 @@
     return text;
   }
   const shownTitle = (it) => (showingEnglish.has(it.id) && translations[it.id]) || it.title;
+  let editingTitle = null;   // id of the item whose title is being corrected
   const textTranslateUrl = (it) =>
     `https://translate.google.com/?sl=auto&tl=en&op=translate&text=${encodeURIComponent((it.title + "\n\n" + realSnippet(it)).trim().slice(0, 4000))}`;
   const pageTranslateUrl = (url) => `https://translate.google.com/translate?sl=auto&tl=en&u=${encodeURIComponent(url)}`;
@@ -498,7 +499,12 @@
         ${it.is_baseline ? `<span class="tag" title="Found on the first scan of this site, may be old">first scan</span>` : ""}
         ${(it.ai_themes || []).filter((t) => THEME_LABEL[t]).map((t) => `<span class="theme" title="Theme tagged by AI">${THEME_LABEL[t]}</span>`).join("")}
       </div>
-      <h4${showingEnglish.has(it.id) ? ` title="Original: ${esc(it.title)}"` : ""}>${it.url ? `<a href="${esc(it.url)}" target="_blank" rel="noopener">${esc(shownTitle(it))}</a>` : esc(shownTitle(it))}</h4>
+      ${editingTitle === it.id
+        ? `<div class="title-edit"><input class="title-input" value="${esc(it.title)}" maxlength="500" aria-label="Title">
+            <button class="btn primary small" type="button" data-title-save="${esc(it.id)}">Save</button>
+            <button class="btn ghost small" type="button" data-title-cancel>Cancel</button></div>`
+        : `<h4${showingEnglish.has(it.id) ? ` title="Original: ${esc(it.title)}"` : ""}>${it.url ? `<a href="${esc(it.url)}" target="_blank" rel="noopener">${esc(shownTitle(it))}</a>` : esc(shownTitle(it))}</h4>`}
+      ${it.original_title && it.original_title !== it.title ? `<p class="muted small" title="The title as it was first collected">Title corrected · was: ${esc(it.original_title)}</p>` : ""}
       ${it.ai_summary && nonEnglish(it) && !showingEnglish.has(it.id) ? `<p class="muted small ai-sum" title="One-line summary written by AI for the weekly brief">In English: ${esc(it.ai_summary)}</p>` : ""}
       ${realSnippet(it) ? `<p class="snippet">${esc(it.snippet)}</p>` : ""}
       ${it.source === "page_watch" && it.snippet ? `<p class="snippet diff">${esc(it.snippet)}</p><p class="muted small">Check the page before updating your records - a layout change can look like a new name.</p>` : ""}
@@ -522,6 +528,7 @@
           ? `<button class="link small" type="button" data-remove="${esc(it.id)}" data-on="0" title="Put it back on the tracker">Restore</button><span class="muted small">removed by ${esc((it.removed_by || "").split("@")[0])} ${ago(it.removed_at)}</span>`
           : `<button class="link small danger" type="button" data-remove="${esc(it.id)}" data-on="1" title="Hide this item everywhere - restore it from Show: Removed">Remove</button>`) : ""}
         ${can("tag_items") ? `<button class="link small" type="button" data-move="${esc(it.id)}" title="File this item under a different PAO">Move to another PAO</button>` : ""}
+        ${can("tag_items") && editingTitle !== it.id ? `<button class="link small" type="button" data-title-edit="${esc(it.id)}" title="Correct a wrong or unclear title">Edit title</button>` : ""}
         ${reviewed}
       </div>
     </li>`;
@@ -599,12 +606,32 @@
     try { await api.update(id, patch); }
     catch (e) {
       ok = false; Object.assign(it, before);
-      const msg = /permission denied/i.test(e.message) && "pao_id" in patch
-        ? "Moving items needs a quick database update (supabase/update-9.sql) - ask your admin" : "Couldn't save: " + e.message;
+      const denied = /permission denied/i.test(e.message);
+      const msg = denied && "pao_id" in patch ? "Moving items needs a quick database update (supabase/update-9.sql) - ask your admin"
+        : denied && "title" in patch ? "Editing titles needs a quick database update (supabase/update-18.sql) - ask your admin"
+        : "Couldn't save: " + e.message;
       toast(msg, true);
     }
     render();
     return ok;
+  }
+
+  async function saveTitle(id) {
+    const input = $(`.item[data-id="${CSS.escape(id)}"] .title-input`);
+    const it = state.items.find((i) => i.id === id);
+    const val = (input?.value || "").replace(/\s+/g, " ").trim();
+    if (!it) return;
+    if (!val) { toast("A title can't be empty", true); return; }
+    editingTitle = null;
+    if (val === it.title) return render();
+    const oldTitle = it.title;
+    if (await save(id, { title: val })) {
+      // mirror the database: keep the first title, drop the AI summary written from the old one
+      if (!it.original_title) it.original_title = oldTitle;
+      it.ai_summary = null; it.ai_themes = null;
+      delete translations[id]; showingEnglish.delete(id);
+      render(); toast("Title saved");
+    }
   }
 
   async function reload() {
@@ -701,6 +728,16 @@
         }
         return;
       }
+      const te = e.target.closest("[data-title-edit]");
+      if (te) {
+        editingTitle = te.dataset.titleEdit; render();
+        const input = $(`.item[data-id="${CSS.escape(editingTitle)}"] .title-input`);
+        if (input) { input.focus(); input.select(); }
+        return;
+      }
+      const ts = e.target.closest("[data-title-save]");
+      if (ts) return saveTitle(ts.dataset.titleSave);
+      if (e.target.closest("[data-title-cancel]")) { editingTitle = null; return render(); }
       const mv = e.target.closest("[data-move]");
       if (mv) {
         // swap the link for a PAO picker; choosing one moves the item
@@ -744,6 +781,11 @@
         pre.hidden = !pre.hidden;
         more.textContent = pre.hidden ? more.dataset.show : more.dataset.hide;
       }
+    });
+    $("#main").addEventListener("keydown", (e) => {
+      if (!e.target.matches(".title-input")) return;
+      if (e.key === "Enter") { e.preventDefault(); saveTitle(e.target.closest(".item").dataset.id); }
+      else if (e.key === "Escape") { editingTitle = null; render(); }
     });
     $("#main").addEventListener("change", (e) => {
       const el = e.target;

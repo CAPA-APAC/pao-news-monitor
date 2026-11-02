@@ -2,6 +2,13 @@
 
 Plain-language log of what changed and why, for anyone who isn't reading the code. One entry per fix or feature, newest first. See the User Guide for how to use each thing; see `_bmad-output/.../addendum.md` for technical detail.
 
+## 2026-11-02 — Edit an item's title
+- Staff who can tag items now see **Edit title** under each news item. Type the corrected title and press Enter (or Save); Escape cancels.
+- The original title is kept and shown under the item ("Title corrected · was: …"), so a change can always be seen and undone.
+- When a title changes, the AI's one-line summary and themes for that item are cleared, because they were written from the old title. The next weekly brief tags the item again from the corrected title. The daily collection never overwrites an existing item, so a corrected title stays corrected.
+- A title can't be left empty.
+- Needs `supabase/update-18.sql` run once in the SQL Editor. Until then, saving a title shows a message asking for the update.
+
 ## 2026-10-30 — Background profiles for PAOs, and CAPA's own background in Ask AI
 - Each PAO can now have a short **background profile**: who they are, their leaders, what they are doing now, how they connect to CAPA, what is not known, and the public sources behind each line, with a "last checked" date.
 - **Ask AI** gives the profile to the AI as "Background on file", kept separate from the numbered news items. So a question like "profile CA Sri Lanka" can use it. The AI is told to label these facts "(background on file)", say how old they are, and say plainly what the profile doesn't cover.
