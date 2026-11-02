@@ -25,8 +25,8 @@ FOOTER = ("This briefing was prepared with AI assistance from public sources and
           "Numbers in [brackets] link to the sources.")
 RECAP_FOOTER = ("This recap was prepared with AI assistance from public sources and reviewed by CAPA staff. "
                 "Titles link to the original pages.")
-BANNER = ROOT / "web" / "brief-banner.jpg"
-BANNER_CID = "capa-recap-banner"
+HEADER = ROOT / "web" / "recap-header.jpg"   # the recap's header picture: replace this file to change it (see README)
+HEADER_CID = "capa-recap-header"
 BRAND = "#D1204E"
 LABELS = {"other": "Other key news", "medium": "Also worth knowing"}
 
@@ -166,7 +166,7 @@ def _split_line(s):
     return (m.group(1), m.group(2)) if m else (s, "")
 
 
-def recap_html(r, banner_src):
+def recap_html(r, header_src):
     font = "font-family:'Century Gothic',Poppins,Arial,sans-serif"
     esc = lambda t: html.escape(t or "", quote=True)
     inl = lambda t: _inline(t or "", {})
@@ -196,9 +196,9 @@ def recap_html(r, banner_src):
     hl2 = r["highlights"][1] if len(r["highlights"]) > 1 else None
     box = "border:1px solid #d9d9de;padding:0"
     rows = [
-        f'<tr><td colspan="3" style="padding:0"><img src="{banner_src}" width="760" alt="CAPA - Connecting the region, '
-        f'shaping a future-ready profession" style="display:block;width:100%;max-width:760px;height:auto;border:0"></td></tr>' if banner_src else "",
-        f'<tr><td colspan="3" style="padding:14px 0 16px"><p style="margin:0;{font};font-size:15px;font-weight:700">{inl(r["date"])}</p>'
+        f'<tr><td colspan="3" style="padding:0"><img src="{header_src}" width="760" alt="CAPA - Confederation of Asian and '
+        f'Pacific Accountants" style="display:block;width:100%;max-width:760px;height:auto;border:0"></td></tr>' if header_src else "",
+        f'<tr><td colspan="3" style="padding:12px 0 16px"><p style="margin:0;{font};font-size:15px;font-weight:700">{inl(r["date"])}</p>'
         f'<p style="margin:2px 0 0;{font};font-size:40px;font-weight:800;color:{BRAND};letter-spacing:.5px;line-height:1.1">'
         f'{esc((r["title"] or "Recap").upper())}</p></td></tr>',
         f'<tr><td valign="top" style="{box};width:33%">{head("Highlight 1")}{hl(hl1)}</td>'
@@ -238,9 +238,11 @@ def subject(brief):
 def build_messages(brief, recipients, sender):
     md = for_sending(brief.get("content"))
     recap = parse_recap(md)
-    banner = BANNER.read_bytes() if recap and BANNER.exists() else None
+    # the pictures travel inside the email, so they show without loading images from the web
+    sub = {".png": "png", ".gif": "gif"}.get(HEADER.suffix.lower(), "jpeg")
+    images = [(HEADER_CID, HEADER.read_bytes(), sub)] if recap and HEADER.exists() else []
     if recap:
-        html_body = recap_html(recap, f"cid:{BANNER_CID}" if banner else "")
+        html_body = recap_html(recap, f"cid:{HEADER_CID}" if images else "")
         text_body = recap_text(recap)
     else:
         html_body = to_html(md, brief.get("sources"))
@@ -257,9 +259,8 @@ def build_messages(brief, recipients, sender):
         m["X-PAO-Monitor"] = "brief"        # the inbox reader skips its own briefs (collector/email_inbox.py)
         m.set_content(text_body)
         m.add_alternative(html_body, subtype="html")
-        if banner:   # the banner travels inside the email, so it shows without loading images from the web
-            m.get_payload()[1].add_related(banner, maintype="image", subtype="jpeg", cid=f"<{BANNER_CID}>",
-                                           filename="capa-recap-banner.jpg")
+        for cid, data, sub in images:
+            m.get_payload()[1].add_related(data, maintype="image", subtype=sub, cid=f"<{cid}>", filename=f"{cid}.{'jpg' if sub == 'jpeg' else sub}")  # noqa: E501
         msgs.append((m, recipients[i:i + BCC_PER_MESSAGE]))
     return msgs
 

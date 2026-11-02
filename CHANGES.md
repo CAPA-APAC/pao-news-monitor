@@ -7,6 +7,7 @@ Plain-language log of what changed and why, for anyone who isn't reading the cod
 - The inbox check now skips the monitor's own briefs: recognised by a hidden header the sender adds, the brief's subject line (also when someone forwards or replies to it), or coming from the monitor's own address. Real emails that mention CAPA are still collected.
 - The recap also leaves out any earlier brief that is already in the tracker.
 - **Same story twice**: when two sources report the same story with different headlines (even with names spelt differently, like "Shahazan Yacob" and "Syahazan Yaacob"), the recap shows it once, in its best place (staff-reviewed first). Stories that only share a word or two ("ICAI issues guidance on...") both stay.
+- **Recap header**: one picture, `web/recap-header.jpg` (CAPA's sharp logo and the full skyline, so no buildings are cut off), shown whole on the page, in Copy for email, in Word and in the email, with the date and title below it. To change the header, replace that file (see the README).
 - **Messy titles**: website links that carry the teaser text after the headline ("... sustainable future 28th Oct 2026 This report explores ...") are cut at the date, and very long titles are shortened.
 - Needs `supabase/update-20.sql` run once: it hides the copies already collected (Show: Removed brings them back).
 
