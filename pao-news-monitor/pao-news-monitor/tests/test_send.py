@@ -100,13 +100,13 @@ def test_recap_email_layout_with_banner(tmp_path):
     msg, _ = FakeSMTP.sent[0]
     assert msg["Subject"] == "CAPA Weekly recap: 26 Oct – 1 Nov 2026"
     html = msg.get_body(("html",)).get_content()
-    assert 'src="cid:capa-recap-skyline"' in html and 'src="cid:capa-recap-logo"' in html and "WEEKLY RECAP" in html
+    assert 'src="cid:capa-recap-header"' in html and "WEEKLY RECAP" in html
     assert ">Highlight 1<" in html and ">Other key news<" in html and ">Also worth knowing<" in html
     assert 'href="https://icai.org/a"' in html and 'href="https://cpa.com/p"' in html     # titles are the links
     assert "&lt;b&gt;on&lt;/b&gt;" in html                                              # still escaped
     assert "Draft written with AI" not in html and "Titles link to the original pages" in html
     images = {p["Content-ID"] for p in msg.walk() if p.get_content_maintype() == "image"}
-    assert images == {"<capa-recap-skyline>", "<capa-recap-logo>"}
+    assert images == {"<capa-recap-header>"}
     text = msg.get_body(("plain",)).get_content()
     assert "HIGHLIGHT 1: ICAI launches AI audit toolkit (https://icai.org/a)" in text
 

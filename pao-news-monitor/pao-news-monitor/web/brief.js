@@ -54,6 +54,7 @@
   //   ## Other high (- bullets) / ## Medium (- bullets) / ## No news found
   // Older briefs (numbered [n] citations) have no "## Highlights" and keep the old rendering.
   const LABELS = { other: "Other key news", medium: "Also worth knowing" };
+  const HEADER_IMAGE = "recap-header.jpg";   // replace this file to change the recap's header (see README)
   const BRAND = "#D1204E";
   function parseRecap(md) {
     if (!/^##\s+Highlights\s*$/im.test(md || "")) return null;
@@ -90,17 +91,16 @@
     const box = (label, inner, cls) => `<section class="recap-box ${cls}"><h2>${esc(label)}</h2><div class="recap-body">${inner}</div></section>`;
     const hl = (h) => h ? `<h3>${inline(h.title, {})}</h3><p class="recap-meta">${inline(h.meta, {})}</p><p>${inline(h.text.join(" "), {})}</p>` : `<p class="muted">Nothing stood out in this period.</p>`;
     const list = (rows) => rows.length ? `<ul>${rows.map((x) => { const [t, d] = splitLine(x); return `<li>${inline(t, {})}${d ? `<span class="recap-meta">${inline(d, {})}</span>` : ""}</li>`; }).join("")}</ul>` : `<p class="muted">None this time.</p>`;
-    // the skyline is shown whole (never cropped); logo, date and title sit in the sky above it
-    return `<header class="recap-head"><img class="recap-skyline" src="brief-skyline.jpg" alt="">
-        <div class="recap-over"><img class="recap-logo" src="capa-logo-hi.png" alt="CAPA - Confederation of Asian and Pacific Accountants">
-        <p class="recap-date">${inline(r.date, {})}</p><h1 class="recap-title">${esc(r.title || "Recap")}</h1></div></header>
+    // the header picture is one file (web/recap-header.jpg), shown whole; swap the file to change it
+    return `<header class="recap-head"><img class="recap-banner" src="${HEADER_IMAGE}" alt="CAPA - Confederation of Asian and Pacific Accountants">
+        <p class="recap-date">${inline(r.date, {})}</p><h1 class="recap-title">${esc(r.title || "Recap")}</h1></header>
       <div class="recap-grid">${box("Highlight 1", hl(r.highlights[0]), "hl1")}${box("Highlight 2", hl(r.highlights[1]), "hl2")}
         ${box(LABELS.other, list(r.other), "other")}${box(LABELS.medium, list(r.medium), "mid")}</div>
       ${r.extra.length ? render(r.extra.join("\n"), []) : ""}
       ${r.quiet ? `<p class="recap-quiet"><b>No news found:</b> ${esc(r.quiet)}</p>` : ""}`;
   }
   // Same layout for Outlook and Word: tables and inline styles only (email clients ignore page CSS).
-  function recapEmailHtml(r, skylineSrc, logoSrc) {
+  function recapEmailHtml(r, headerSrc) {
     const font = "font-family:'Century Gothic',Poppins,Arial,sans-serif";
     const a = (h) => h.replace(/<a href=/g, `<a style="color:#1d1d1f;text-decoration:underline;text-decoration-color:${BRAND}" href=`);
     const head = (label) => `<div style="background:${BRAND};color:#fff;${font};font-weight:700;font-size:17px;text-align:center;padding:10px 8px">${esc(label)}</div>`;
@@ -112,10 +112,9 @@
       return `<p style="margin:0 0 10px;font-size:14px;line-height:1.4">${a(inline(t, {}))}${d ? `<br><span style="font-size:12px;color:#6e6e73">${inline(d, {})}</span>` : ""}</p>`; }).join("")
       : `<p style="margin:0;color:#6e6e73">None this time.</p>`}</div>`;
     return `<table role="presentation" width="760" cellpadding="0" cellspacing="0" style="width:760px;max-width:100%;border-collapse:collapse;font-family:Calibri,Arial,sans-serif;color:#1d1d1f">
-      ${logoSrc ? `<tr><td colspan="3" style="padding:0 0 8px"><img src="${logoSrc}" width="200" alt="CAPA - Confederation of Asian and Pacific Accountants" style="display:block;width:200px;height:auto;border:0"></td></tr>` : ""}
-      <tr><td colspan="3" style="padding:6px 0 4px"><p style="margin:0;${font};font-size:15px;font-weight:700">${inline(r.date, {})}</p>
+      ${headerSrc ? `<tr><td colspan="3" style="padding:0"><img src="${headerSrc}" width="760" alt="CAPA - Confederation of Asian and Pacific Accountants" style="display:block;width:100%;max-width:760px;height:auto;border:0"></td></tr>` : ""}
+      <tr><td colspan="3" style="padding:12px 0 16px"><p style="margin:0;${font};font-size:15px;font-weight:700">${inline(r.date, {})}</p>
         <p style="margin:2px 0 0;${font};font-size:40px;font-weight:800;color:${BRAND};letter-spacing:.5px;line-height:1.1">${esc((r.title || "Recap").toUpperCase())}</p></td></tr>
-      ${skylineSrc ? `<tr><td colspan="3" style="padding:0 0 12px"><img src="${skylineSrc}" width="760" alt="" style="display:block;width:100%;max-width:760px;height:auto;border:0"></td></tr>` : ""}
       <tr>${cell(head("Highlight 1") + hl(r.highlights[0]), "width:33%")}${cell(head("Highlight 2") + hl(r.highlights[1]), "width:33%")}
         <td rowspan="2" valign="top" style="border:1px solid #d9d9de;padding:0;width:34%">${head(LABELS.other) + list(r.other)}</td></tr>
       <tr><td colspan="2" valign="top" style="border:1px solid #d9d9de;padding:0">${head(LABELS.medium) + list(r.medium)}</td></tr>
@@ -124,7 +123,7 @@
     </table>`;
   }
   const asset = (name) => new URL(name, location.href).href;
-  const recapForEmail = (r) => recapEmailHtml(r, asset("brief-skyline-email.jpg"), asset("capa-logo-hi.png"));
+  const recapForEmail = (r) => recapEmailHtml(r, asset(HEADER_IMAGE));
 
   // ---------- data ----------
   async function load() {
