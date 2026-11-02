@@ -172,11 +172,51 @@ def rank(it):
             bool(it.get("url")), when(it))
 
 
+_STOP = set("""a an and the of for to in on at by with from as is are was were be been its it this that these those
+new news has have had will into over after about than more most how why what who our their his her
+jan feb mar apr may jun jul aug sep sept oct nov dec january february march april june july august september
+october november december
+issue issues issued launch launches launched announce announces announced release releases released
+publish publishes published appoint appoints appointed elect elects elected name names named""".split())
+
+
+def _words(it):
+    text = it.get("title") or ""
+    if (it.get("language") or "en")[:2] not in ("en", "") and it.get("ai_summary"):
+        text = it["ai_summary"]
+    return [w for w in re.findall(r"[a-z]{3,}", text.lower()) if w not in _STOP]
+
+
+def same_story(a, b):
+    """Two headlines about the same story, even when sources spell names differently
+    ("Shahazan Yacob" / "Syahazan Yaacob"): most words of the shorter headline appear, near enough, in the other."""
+    from difflib import SequenceMatcher
+    wa, wb = _words(a), _words(b)
+    if len(wa) > len(wb):
+        wa, wb = wb, wa
+    if len(wa) < 3:
+        return False
+    close = lambda x, y: x == y or (len(x) >= 5 and len(y) >= 5 and SequenceMatcher(None, x, y).ratio() >= 0.8)
+    hits = sum(1 for x in set(wa) if any(close(x, y) for y in wb))
+    return hits >= 3 and hits / len(set(wa)) >= 0.7
+
+
+def drop_repeats(items):
+    """Keep the first (best-ranked) item of each story."""
+    kept = []
+    for it in items:
+        if not any(same_story(it, k) for k in kept):
+            kept.append(it)
+    return kept
+
+
 def lay_out(items):
-    """(highlights, other high, medium). Leadership page-change notices never lead: their titles are diffs."""
+    """(highlights, other high, medium). Leadership page-change notices never lead: their titles are diffs.
+    The same story told by two sources appears once, in its best-ranked place."""
     tiers = {i["id"]: tier(i) for i in items}
-    high = sorted([i for i in items if tiers[i["id"]] == "high"], key=rank, reverse=True)
-    medium = sorted([i for i in items if tiers[i["id"]] == "medium"], key=rank, reverse=True)
+    ordered = drop_repeats(sorted([i for i in items if tiers[i["id"]]], key=lambda i: (tiers[i["id"]] == "high", rank(i)), reverse=True))
+    high = [i for i in ordered if tiers[i["id"]] == "high"]
+    medium = [i for i in ordered if tiers[i["id"]] == "medium"]
     can_lead = [i for i in high + medium if i.get("source") != "page_watch" and i.get("url")]
     lead = can_lead[:HIGHLIGHTS]
     lead_ids = {i["id"] for i in lead}
@@ -199,8 +239,22 @@ def headline(it):
     text = it.get("title") or ""
     if (it.get("language") or "en")[:2] not in ("en", "") and it.get("ai_summary"):
         text = it["ai_summary"]
-    text = _md_text(clean(text, 200))
+    text = tidy_title(_md_text(clean(text, 300)))
     return f"[{text}]({_md_url(it['url'])})" if it.get("url") else text
+
+
+_DATE_IN_TITLE = re.compile(r"\s+\d{1,2}(st|nd|rd|th)?\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+\d{4}\b.*$", re.I)
+
+
+def tidy_title(text, limit=120):
+    """Website links sometimes carry the teaser too ("Asia Pacific builds a sustainable future 28th Oct 2026 This
+    report explores..."): cut at a date that follows the headline, then shorten at a word boundary."""
+    cut = _DATE_IN_TITLE.sub("", text)
+    if len(cut) >= 15:
+        text = cut
+    if len(text) > limit:
+        text = text[:limit].rsplit(" ", 1)[0].rstrip(",;:-–") + "…"
+    return text
 
 
 def short_date(iso_):

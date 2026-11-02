@@ -278,3 +278,27 @@ def test_earlier_briefs_from_the_inbox_stay_out(tmp_path):
                                       title="CAPA weekly intelligence brief: 11 Oct 2026 – 18 Oct 2026")
     got = {i["id"] for i in brief.gather(store, NOW - __import__("datetime").timedelta(days=7))}
     assert "own" not in got and "a" in got
+
+
+def test_same_story_from_two_sources_appears_once():
+    a = {"id": "a", "pao_id": "mia", "title": "Ahmad Shahazan Yacob elected MIA's new president, former Bursa chief Umar Swift is VP",
+         "relevance": "high", "url": "https://x.org/a", "kind": "news", "published_at": "2026-10-29T00:00:00+00:00"}
+    b = dict(a, id="b", title="MIA appoints Ahmad Syahazan Yaacob as president", relevance=None, ai_relevance="high",
+             url="https://x.org/b", published_at="2026-10-30T00:00:00+00:00")
+    c = dict(a, id="c", title="ICAI to issue Audit Guidance for Multi-disciplinary firms", pao_id="icai", url="https://x.org/c")
+    d = dict(a, id="d", title="ICAI issues guidance on sustainability assurance", pao_id="icai", url="https://x.org/d")
+    lead, other, mid = brief.lay_out([a, b, c, d])
+    ids = [i["id"] for i in lead + other + mid]
+    assert "a" in ids and "b" not in ids                    # staff-reviewed version kept, the repeat dropped
+    assert "c" in ids and "d" in ids                        # different stories that share a few words both stay
+    assert not brief.same_story({"title": "AI raises the stakes for auditor judgement"},
+                                {"title": "How CPAs are putting AI to work in audits"})
+
+
+def test_teaser_text_cut_from_titles():
+    t = ("Asia Pacific builds a sustainable future 28th Oct 2026 This report explores how Asia Pacific can turn its lead "
+         "in sustainability reporting into resilience across economy, environment and society. Lear")
+    assert brief.tidy_title(t) == "Asia Pacific builds a sustainable future"
+    long = "A very long headline " * 10
+    assert len(brief.tidy_title(long)) <= 121 and brief.tidy_title(long).endswith("…")
+    assert brief.tidy_title("ICAI elects new President") == "ICAI elects new President"

@@ -2,10 +2,12 @@
 
 Plain-language log of what changed and why, for anyone who isn't reading the code. One entry per fix or feature, newest first. See the User Guide for how to use each thing; see `_bmad-output/.../addendum.md` for technical detail.
 
-## 2026-11-02 — The monitor no longer collects its own briefs from the inbox
+## 2026-11-02 — Recap fixes: no own briefs from the inbox, no repeated stories, tidier titles
 - The brief is emailed To the monitor's own inbox (everyone else is in BCC). The daily inbox check then picked it up as an "email" item under every PAO it mentions, so the recap listed "CAPA weekly intelligence brief" over and over.
 - The inbox check now skips the monitor's own briefs: recognised by a hidden header the sender adds, the brief's subject line (also when someone forwards or replies to it), or coming from the monitor's own address. Real emails that mention CAPA are still collected.
 - The recap also leaves out any earlier brief that is already in the tracker.
+- **Same story twice**: when two sources report the same story with different headlines (even with names spelt differently, like "Shahazan Yacob" and "Syahazan Yaacob"), the recap shows it once, in its best place (staff-reviewed first). Stories that only share a word or two ("ICAI issues guidance on...") both stay.
+- **Messy titles**: website links that carry the teaser text after the headline ("... sustainable future 28th Oct 2026 This report explores ...") are cut at the date, and very long titles are shortened.
 - Needs `supabase/update-20.sql` run once: it hides the copies already collected (Show: Removed brings them back).
 
 ## 2026-11-02 — The brief becomes a recap in CAPA's newsletter layout; a cleaner website
