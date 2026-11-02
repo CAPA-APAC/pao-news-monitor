@@ -590,7 +590,7 @@
       }).join("")}</tr>`).join("") + "</tbody>";
   }
 
-  // ---------- AI usage on the Status page: counts only (no questions or answers are ever stored) ----------
+  // ---------- AI usage on the Admin tab (admins only): counts only (no questions or answers are ever stored) ----------
   const USAGE_LABEL = { ask: "Ask AI", relevance: "Daily relevance check", tagging: "Brief: tagging", explain: "Brief: highlight explanations" };
   let usageData = null;
   const fmtTok = (n) => n >= 1e9 ? (n / 1e9).toFixed(2) + "B" : n >= 1e6 ? (n / 1e6).toFixed(2) + "M" : n >= 1e3 ? (n / 1e3).toFixed(1) + "K" : String(Math.round(n));
@@ -681,7 +681,6 @@
     for (const sel of [".filters", ".layout", "#brief-view", "#admin-view", "#ask-view"]) document.querySelector(sel).hidden = true;
     $("#status-view").hidden = false;
     renderStatus();
-    loadUsage();
     window.scrollTo(0, 0);
   }
   function closeStatus() {
@@ -1069,7 +1068,7 @@
   }).observe($(".filters"));
 
   // shared with manage.js (Members, People, Import)
-  window.PAOApp = { api, state, reload, render, toast, esc, get db() { return db; }, DEMO, CFG, kindLabel: KIND_LABEL, can, ALL_PERMS };
+  window.PAOApp = { api, state, reload, render, toast, esc, loadUsage, get db() { return db; }, DEMO, CFG, kindLabel: KIND_LABEL, can, ALL_PERMS };
 
   restoreFilters();
   wire();
