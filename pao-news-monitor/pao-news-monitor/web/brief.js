@@ -181,6 +181,7 @@
         : canSend() && current.status === "approved" ? `<button class="btn primary" id="brief-send" type="button">${current.sent_at ? "Send again…" : "Send to mailing list…"}</button>` : "",
       `<button class="btn ghost" id="brief-copy" type="button" title="Copy with formatting, then paste into an Outlook email">Copy for email</button>`,
       `<button class="btn ghost" id="brief-word" type="button">Download Word</button>`,
+      canApprove() ? `<button class="btn ghost danger" id="brief-delete" type="button" title="Delete this brief">Delete</button>` : "",
     ].join("");
     const recap = parseRecap(current.content);
     body.innerHTML = meta + (recap
@@ -196,6 +197,19 @@
       if (!A.DEMO) { const { error } = await A.db.from("briefs").update(patch).eq("id", current.id); if (error) throw error; }
       Object.assign(current, patch); editing = false; draw(); A.toast("Saved");
     } catch (e) { A.toast("Couldn't save: " + e.message, true); }
+  }
+  async function remove() {
+    const queued = current.send_requested_at && !current.sent_at;
+    if (queued) return A.toast("This brief is queued to send - press Cancel sending first", true);
+    const label = `${fmt(current.period_start)} – ${fmt(current.period_end)}`;
+    if (!confirm(`Delete the brief for ${label}?${current.sent_at ? " It was already emailed; that email isn't affected." : ""} This can't be undone.`)) return;
+    try {
+      if (!A.DEMO) { const { error } = await A.db.rpc("delete_brief", { brief_id: current.id }); if (error) throw error; }
+      briefs = briefs.filter((b) => b.id !== current.id);
+      current = briefs[0] || null; editing = false; draw(); A.toast("Brief deleted");
+    } catch (e) {
+      A.toast(/delete_brief|function/i.test(e.message) ? "Deleting needs a quick database update (supabase/update-21.sql) - ask your admin" : "Couldn't delete: " + e.message, true);
+    }
   }
   async function approve() {
     const next = current.status === "approved" ? "draft" : "approved";
@@ -308,6 +322,7 @@
     else if (id === "brief-word") word();
     else if (id === "brief-send") openSend();
     else if (id === "brief-cancel-send") cancelSend();
+    else if (id === "brief-delete") remove();
   });
   // leaving other views closes this one
   for (const sel of ["#admin-btn"]) document.querySelector(sel)?.addEventListener("click", () => { $("#brief-view").hidden = true; });
