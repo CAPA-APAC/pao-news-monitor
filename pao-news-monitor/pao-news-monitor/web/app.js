@@ -112,12 +112,12 @@
       return { paos: paos.data, health: health.data, lastRun: runs.data[0], items };
     },
     // AI usage log (update-22.sql). Returns { rows } or { error } - a missing table is not a crash.
-    async usage(sinceIso) {
-      if (DEMO) return { rows: (this.demo.usage || []).filter((r) => r.at >= sinceIso) };
+    async usage(sinceIso, untilIso) {
+      if (DEMO) return { rows: (this.demo.usage || []).filter((r) => r.at >= sinceIso && r.at < untilIso) };
       const rows = [];
       for (let from = 0; ; from += 1000) {
         const { data, error } = await db.from("ai_usage").select("at,feature,model,prompt_tokens,completion_tokens")
-          .gte("at", sinceIso).order("at", { ascending: true }).range(from, from + 999);
+          .gte("at", sinceIso).lt("at", untilIso).order("at", { ascending: true }).range(from, from + 999);
         if (error) return { error: error.message || String(error) };
         rows.push(...data);
         if (data.length < 1000) break;
@@ -600,10 +600,24 @@
     try { const x = JSON.parse(localStorage.getItem("pao-usage-price") || "null"); if (x && x.in >= 0 && x.out >= 0) p = x; } catch (e) { /* storage blocked */ }
     return p;
   }
+  // Period: any From/To dates (UTC, inclusive), so it can match a billing cycle. Default: the last 30 days.
+  const ymd = (d) => d.toISOString().slice(0, 10);
+  function usagePreset(kind) {
+    const now = new Date(), y = now.getUTCFullYear(), m = now.getUTCMonth();
+    let a, b = now;
+    if (kind === "month") a = new Date(Date.UTC(y, m, 1));
+    else if (kind === "lastmonth") { a = new Date(Date.UTC(y, m - 1, 1)); b = new Date(Date.UTC(y, m, 0)); }
+    else a = new Date(now.getTime() - (Number(kind) - 1) * 864e5);
+    $("#us-from").value = ymd(a); $("#us-to").value = ymd(b);
+  }
   async function loadUsage() {
-    const days = Number($("#us-range").value) || 30;
-    const since = new Date(Date.now() - days * 864e5).toISOString();
-    usageData = { days, ...(await api.usage(since)) };
+    if (!$("#us-from").value || !$("#us-to").value) usagePreset(30);
+    let a = $("#us-from").value, b = $("#us-to").value;
+    if (a > b) { [a, b] = [b, a]; $("#us-from").value = a; $("#us-to").value = b; }
+    const days = [];
+    for (let t = Date.parse(a + "T00:00:00Z"); t <= Date.parse(b + "T00:00:00Z"); t += 864e5) days.push(ymd(new Date(t)));
+    const until = new Date(Date.parse(b + "T00:00:00Z") + 864e5).toISOString();
+    usageData = { days, ...(await api.usage(a + "T00:00:00.000Z", until)) };
     renderUsage();
   }
   function renderUsage() {
@@ -634,12 +648,11 @@
     // per day (UTC date), every day of the period shown
     const byDay = {};
     for (const r of rows) { const k = r.at.slice(0, 10); (byDay[k] ||= { n: 0, t: 0 }); byDay[k].n++; byDay[k].t += (r.prompt_tokens || 0) + (r.completion_tokens || 0); }
-    const days = [];
-    for (let i = u.days - 1; i >= 0; i--) days.push(new Date(Date.now() - i * 864e5).toISOString().slice(0, 10));
+    const days = u.days;
     const max = Math.max(1, ...days.map((k) => byDay[k]?.t || 0));
     const busiest = days.reduce((b, k) => ((byDay[k]?.t || 0) > (byDay[b]?.t || 0) ? k : b), days[0]);
     $("#us-cards").innerHTML = [
-      ["Requests", tot.n.toLocaleString("en-US"), `${(tot.n / u.days).toFixed(1)} a day on average`],
+      ["Requests", tot.n.toLocaleString("en-US"), `${(tot.n / u.days.length).toFixed(1)} a day on average over ${u.days.length} day${u.days.length > 1 ? "s" : ""}`],
       ["Tokens", fmtTok(tot.i + tot.o), `${fmtTok(tot.i)} in, ${fmtTok(tot.o)} out`],
       ["Estimated price", fmtUsd(cost(tot.i, tot.o)), `If paid at $${pr.in}/$${pr.out} per 1M tokens`],
       ["Busiest day", new Date(busiest + "T00:00:00Z").toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" }), `${fmtTok(byDay[busiest]?.t || 0)} tokens, ${byDay[busiest]?.n || 0} requests`],
@@ -649,7 +662,9 @@
       return d ? `<span class="us-bar" style="height:${Math.max(3, d.t / max * 100).toFixed(1)}%" title="${label}: ${fmtTok(d.t)} tokens, ${d.n} requests"></span>`
                : `<span class="us-bar zero" title="${label}: no requests"></span>`;
     }).join("");
-    const short = (k) => new Date(k + "T00:00:00Z").toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
+    $("#us-bars").style.gap = days.length > 60 ? "0" : "";
+    const yrs = days[0].slice(0, 4) !== days.at(-1).slice(0, 4);
+    const short = (k) => new Date(k + "T00:00:00Z").toLocaleDateString("en-GB", { day: "numeric", month: "short", ...(yrs ? { year: "numeric" } : {}), timeZone: "UTC" });
     $("#us-axis").innerHTML = `<span>${short(days[0])}</span><span>${short(days.at(-1))}</span>`;
     const group = (keyFn, label) => {
       const g = {};
@@ -761,7 +776,8 @@
       }
     });
     $("#status-btn").addEventListener("click", openStatus);
-    $("#us-range").addEventListener("change", loadUsage);
+    for (const id of ["#us-from", "#us-to"]) $(id).addEventListener("change", loadUsage);
+    for (const b of $$("[data-us-preset]")) b.addEventListener("click", () => { usagePreset(b.dataset.usPreset); loadUsage(); });
     for (const id of ["#us-pin", "#us-pout"]) $(id).addEventListener("change", () => {
       const v = { in: Math.max(0, parseFloat($("#us-pin").value) || 0), out: Math.max(0, parseFloat($("#us-pout").value) || 0) };
       try { localStorage.setItem("pao-usage-price", JSON.stringify(v)); } catch (e) { /* storage blocked */ }

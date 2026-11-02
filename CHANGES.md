@@ -3,7 +3,7 @@
 Plain-language log of what changed and why, for anyone who isn't reading the code. One entry per fix or feature, newest first. See the User Guide for how to use each thing; see `_bmad-output/.../addendum.md` for technical detail.
 
 ## 2026-11-02 — AI usage on the Status page
-- The **Status** page has a new **AI usage** panel: requests, tokens in and out, an estimated price, tokens per day as a bar chart, and tables by job (Ask AI, daily relevance check, brief tagging, highlight explanations) and by model. Pick the last 7, 30 or 90 days.
+- The **Status** page has a new **AI usage** panel: requests, tokens in and out, an estimated price, tokens per day as a bar chart, and tables by job (Ask AI, daily relevance check, brief tagging, highlight explanations) and by model. Pick any From and To dates (UTC, the days AI providers bill by) to match a billing cycle, or use *This month*, *Last month* or *Last 30 days*.
 - Every AI answer is logged as one row: when, which job, which model, how many tokens in and out. **No question, answer or article text is stored.**
 - The estimated price uses rates you can change under *Price used for the estimate* (default: Claude Haiku 5.5, $0.10 in / $0.50 out per 1M tokens). Most models the tracker uses are on free plans, so this is what the same work would cost on a paid model, not a bill.
 - Needs `supabase/update-22.sql` run once, and the **Ask AI** function redeployed (so its answers are logged too). Until then the panel says usage isn't being logged yet; nothing else is affected, and a missing table never stops an answer or a run.

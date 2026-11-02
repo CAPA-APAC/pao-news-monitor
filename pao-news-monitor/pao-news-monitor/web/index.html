@@ -118,7 +118,14 @@
       <div class="panel" id="usage-panel">
         <div class="usage-head">
           <h3>AI usage</h3>
-          <select id="us-range" aria-label="Period"><option value="7">Last 7 days</option><option value="30" selected>Last 30 days</option><option value="90">Last 90 days</option></select>
+        </div>
+        <div class="usage-range">
+          <label>From <input type="date" id="us-from"></label>
+          <label>To <input type="date" id="us-to"></label>
+          <button class="btn small" type="button" data-us-preset="month">This month</button>
+          <button class="btn small" type="button" data-us-preset="lastmonth">Last month</button>
+          <button class="btn small" type="button" data-us-preset="30">Last 30 days</button>
+          <span class="muted small">Dates are UTC (Malaysia time minus 8 hours), the same days AI providers bill by.</span>
         </div>
         <p class="muted small" id="us-note"></p>
         <div class="status-cards" id="us-cards"></div>
