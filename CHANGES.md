@@ -2,6 +2,11 @@
 
 Plain-language log of what changed and why, for anyone who isn't reading the code. One entry per fix or feature, newest first. See the User Guide for how to use each thing; see `_bmad-output/.../addendum.md` for technical detail.
 
+## 2026-11-02 — Delete a brief; delete removed items for good
+- **Weekly Brief → Delete** (admins, or anyone with *Approve briefs*): deletes the brief after a confirmation. A brief queued to send must have sending cancelled first. Deleting a brief that was already emailed doesn't affect the email.
+- **Delete for good** on removed items (anyone with *Remove items*): under **Show: Removed**, each item has *Delete for good*, and the summary line has *Delete all N removed for good*. Only removed items can be deleted. Deleted items are remembered by fingerprint, so the daily collection never brings them back. (Removed items are still deleted automatically after 90 days.)
+- Needs `supabase/update-21.sql` run once in the SQL Editor.
+
 ## 2026-11-02 — Recap fixes: no own briefs from the inbox, no repeated stories, tidier titles
 - The brief is emailed To the monitor's own inbox (everyone else is in BCC). The daily inbox check then picked it up as an "email" item under every PAO it mentions, so the recap listed "CAPA weekly intelligence brief" over and over.
 - The inbox check now skips the monitor's own briefs: recognised by a hidden header the sender adds, the brief's subject line (also when someone forwards or replies to it), or coming from the monitor's own address. Real emails that mention CAPA are still collected.

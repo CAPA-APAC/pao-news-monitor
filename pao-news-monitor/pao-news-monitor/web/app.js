@@ -127,6 +127,12 @@
       const { error } = await db.rpc("remove_item", { item_id: id, remove: on });
       if (error) throw error;
     },
+    async deleteForever(ids) {   // ids null = every removed item
+      if (DEMO) return (ids || []).length;
+      const { data, error } = await db.rpc("delete_items_forever", { item_ids: ids });
+      if (error) throw error;
+      return data;
+    },
     async insert(row) {
       if (DEMO) return;
       const { error } = await db.from("items").insert(row);
@@ -323,7 +329,9 @@
     const withNews = [...byPao.values()].filter((l) => l.length).length;
     const cats = [...new Set((CFG.CATEGORIES || []).concat(state.items.map((i) => i.category).filter(Boolean)))];
     $("#main").innerHTML = `<datalist id="cats">${cats.map((c) => `<option value="${esc(c)}">`).join("")}</datalist>` +
-      `<p class="summary">${total} item${total === 1 ? "" : "s"} across ${withNews} of ${state.paos.length} organisations</p>` +
+      `<p class="summary">${total} item${total === 1 ? "" : "s"} across ${withNews} of ${state.paos.length} organisations`
+        + (f.status === "removed" && total && can("remove_items") ? ` <button class="btn small danger" type="button" data-forever-all>Delete all ${total} removed for good</button>` : "")
+        + `</p>` +
       groups.map(({ g, paos }) => `<h2 class="group-title">${esc(GROUP_LABEL[g] || g)}</h2>` + paos.map((p) => section(p, byPao.get(p.id), !!f.q)).join("")).join("");
     updateMultiLabels();
     updateToggleAll();
@@ -525,7 +533,7 @@
         ${nonEnglish(it) ? `<button class="link small" type="button" data-translate="${esc(it.id)}" title="Show the headline in English (Google Translate)">${showingEnglish.has(it.id) ? "Show original" : "Translate"}</button>` : ""}
         ${nonEnglish(it) && canTranslatePage(it) ? `<a class="link small" href="${esc(pageTranslateUrl(it.url))}" target="_blank" rel="noopener" title="Open the whole page translated">Translate page</a>` : ""}
         ${can("remove_items") ? (it.removed_at
-          ? `<button class="link small" type="button" data-remove="${esc(it.id)}" data-on="0" title="Put it back on the tracker">Restore</button><span class="muted small">removed by ${esc((it.removed_by || "").split("@")[0])} ${ago(it.removed_at)}</span>`
+          ? `<button class="link small" type="button" data-remove="${esc(it.id)}" data-on="0" title="Put it back on the tracker">Restore</button><button class="link small danger" type="button" data-forever="${esc(it.id)}" title="Delete it for good - it won't come back">Delete for good</button><span class="muted small">removed by ${esc((it.removed_by || "").split("@")[0])} ${ago(it.removed_at)}</span>`
           : `<button class="link small danger" type="button" data-remove="${esc(it.id)}" data-on="1" title="Hide this item everywhere - restore it from Show: Removed">Remove</button>`) : ""}
         ${can("tag_items") ? `<button class="link small" type="button" data-move="${esc(it.id)}" title="File this item under a different PAO">Move to another PAO</button>` : ""}
         ${can("tag_items") && editingTitle !== it.id ? `<button class="link small" type="button" data-title-edit="${esc(it.id)}" title="Correct a wrong or unclear title">Edit title</button>` : ""}
@@ -725,6 +733,21 @@
         } catch (err) {
           Object.assign(it, before); render();
           toast(/remove_item|function/i.test(err.message) ? "Removing needs a quick database update (supabase/update-10.sql) - ask your admin" : "Couldn't save: " + err.message, true);
+        }
+        return;
+      }
+      const fv = e.target.closest("[data-forever], [data-forever-all]");
+      if (fv) {
+        const all = fv.hasAttribute("data-forever-all");
+        const ids = all ? state.items.filter((i) => i.removed_at).map((i) => i.id) : [fv.dataset.forever];
+        if (!confirm(all ? `Delete all ${ids.length} removed items for good? This can't be undone.` : "Delete this item for good? This can't be undone.")) return;
+        try {
+          const n = await api.deleteForever(all ? null : ids);
+          const gone = new Set(ids);
+          state.items = state.items.filter((i) => !gone.has(i.id));
+          render(); toast(`Deleted ${n ?? ids.length} item${(n ?? ids.length) === 1 ? "" : "s"} for good`);
+        } catch (err) {
+          toast(/delete_items_forever|function/i.test(err.message) ? "Deleting needs a quick database update (supabase/update-21.sql) - ask your admin" : "Couldn't delete: " + err.message, true);
         }
         return;
       }
