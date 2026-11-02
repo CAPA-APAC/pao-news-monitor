@@ -86,7 +86,7 @@ def classify(chain, items, paos_by_id, system):
         batch = items[start:start + BATCH]
         user = "\n".join(item_line(n, it, paos_by_id) for n, it in enumerate(batch, 1))
         try:
-            text, model = chain.ask("fast", system, user, max_tokens=4000, temperature=0.1)
+            text, model = chain.ask("fast", system, user, max_tokens=4000, temperature=0.1, feature="relevance")
         except AIUnavailable as e:
             log.warning("relevance suggestions stopped: %s", e)
             break
@@ -123,6 +123,7 @@ def suggest(store, chain=None, now=None):
     paos_by_id = {p["id"]: p for p in paos}
     system = RULES + "\n\n" + register(paos)
     got = classify(chain, items, paos_by_id, system)
+    getattr(chain, "flush_usage", lambda _s: None)(store)
     if got:
         at = iso(now_utc())
         by_id = {it["id"]: it for it in items}

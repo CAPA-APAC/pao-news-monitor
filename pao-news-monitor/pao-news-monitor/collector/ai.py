@@ -45,6 +45,13 @@ class AIUnavailable(Exception):
     """Every model in the chain failed or ran out of quota."""
 
 
+def _int(v):
+    try:
+        return max(0, int(v))
+    except (TypeError, ValueError):
+        return 0
+
+
 class Chain:
     def __init__(self, env=None, session=None, sleep=time.sleep):
         self.env = env if env is not None else os.environ
@@ -53,6 +60,7 @@ class Chain:
         self.dead = set()     # "provider:model" that failed for good this run (quota, no access, unknown model)
         self.used = []        # models that answered, in order
         self.log = []         # what happened, for the run summary
+        self.usage = []       # one row per answer: feature, model, tokens in/out (saved by flush_usage)
 
     # ---- configuration ----
     def chain(self, kind):
@@ -81,7 +89,7 @@ class Chain:
         return None
 
     # ---- calling ----
-    def ask(self, kind, system, user, max_tokens=1500, temperature=0.2):
+    def ask(self, kind, system, user, max_tokens=1500, temperature=0.2, feature=None):
         """Returns (text, model_spec). Raises AIUnavailable if nothing answers.
         An answer that was cut off (ran out of length) counts as a failure: the same model
         is asked once more with 3x the room, then the next model is tried."""
@@ -108,7 +116,8 @@ class Chain:
                     break
                 if r.status_code == 200:
                     try:
-                        choice = r.json()["choices"][0]
+                        body = r.json()
+                        choice = body["choices"][0]
                         text = choice["message"]["content"] or ""
                         finish = choice.get("finish_reason")
                     except (ValueError, KeyError, IndexError, TypeError):
@@ -124,6 +133,7 @@ class Chain:
                         break
                     if text.strip():
                         self.used.append(spec)
+                        self._note_usage(feature or kind, spec, body)
                         return text, spec
                     self.log.append(f"{spec}: empty answer")
                     break
@@ -136,6 +146,23 @@ class Chain:
                     self.dead.add(spec)
                 break
         raise AIUnavailable("no AI model answered (tried: " + (", ".join(tried) or "none - no keys available") + ")")
+
+    # ---- usage log ----
+    def _note_usage(self, feature, spec, body):
+        u = body.get("usage") if isinstance(body, dict) else None
+        u = u if isinstance(u, dict) else {}
+        self.usage.append({"feature": feature, "model": spec,
+                           "prompt_tokens": _int(u.get("prompt_tokens")), "completion_tokens": _int(u.get("completion_tokens"))})
+
+    def flush_usage(self, store):
+        """Save the usage rows collected so far. Never raises: a missing table (update-22.sql not run) just logs."""
+        rows, self.usage = self.usage, []
+        if not rows:
+            return
+        try:
+            store.log_ai_usage(rows)
+        except Exception as e:  # noqa: BLE001
+            self.log.append(f"usage log not saved: {type(e).__name__}")
 
 
 def parse_json(text):

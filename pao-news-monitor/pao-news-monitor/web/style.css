@@ -500,3 +500,17 @@ dialog.zoom img { display: block; max-width: 100%; max-height: calc(100vh - 120p
 .ai-sources summary { cursor: pointer; font-weight: 600; }
 .ai-sources ol { margin: 6px 0 0; padding-left: 26px; }
 .ai-sources li { margin: 3px 0; }
+
+/* ---------- AI usage (Status page) ---------- */
+.usage-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.usage-head h3 { margin: 0; }
+.usage-bars { display: flex; align-items: flex-end; gap: 2px; height: 120px; margin: 14px 0 4px; overflow: hidden; border-bottom: 1px solid var(--line); }
+.usage-bars .us-bar { flex: 1 1 0; min-width: 1px; background: var(--brand); border-radius: 3px 3px 0 0; opacity: .85; }
+.usage-bars .us-bar.zero { background: var(--line); height: 2px; opacity: 1; }
+.usage-bars .us-bar:hover { opacity: 1; }
+.usage-range { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 10px; }
+.usage-range input { margin-left: 6px; }
+.usage-axis { display: flex; justify-content: space-between; margin-bottom: 14px; }
+.usage-price-row { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 8px; }
+.usage-price-row input { width: 90px; margin-left: 6px; }
+.usage-note-warn { color: var(--amber, #b26a00); }
