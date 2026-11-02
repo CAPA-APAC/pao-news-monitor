@@ -2,6 +2,16 @@
 
 Plain-language log of what changed and why, for anyone who isn't reading the code. One entry per fix or feature, newest first. See the User Guide for how to use each thing; see `_bmad-output/.../addendum.md` for technical detail.
 
+## 2026-11-02 — The brief becomes a recap in CAPA's newsletter layout; a cleaner website
+- **New recap layout** (from the CAPA newsletter template): the CAPA banner, the date and a big title ("Weekly recap", or "Daily recap" for one day), then **Highlight 1** and **Highlight 2**, **Other key news** down the right, and **Also worth knowing** underneath. The same layout is used on the Weekly Brief page, in Copy for email, in Download Word and in the email that goes to the mailing list.
+- **No footnotes or numbers**: every story's title is the link to its page.
+- **Highlights**: the two most important stories (staff High first, then AI-suggested High). The AI writes 2-3 sentences for each from the article's own page (or the collected excerpt) - what happened and why it matters to PAOs in the region. Without an AI model, the excerpt is shown instead.
+- **Other key news**: the rest of the High stories. Opportunities to comment and leadership changes always count as High and are labelled. **Also worth knowing**: Medium stories, plus untagged stories the tagger rated notable.
+- The recap is laid out by code, not written by the AI, so nothing is invented around the stories. It is still plain text underneath, so **Edit** works as before (keep the section headings).
+- Older briefs still show in their original format.
+- **Website look** (using Apple's design guidelines for web apps): calmer neutral background so CAPA's crimson stands out where it means something (the current tab and the recap), clearer group headings, cards with soft shadows, larger click targets (buttons at least 32px tall), a translucent filter bar, a visible keyboard focus ring everywhere, and no animation for people who turn motion off. All colours meet the 4.5:1 contrast minimum.
+- No database change. The new layout applies to briefs written from the next run.
+
 ## 2026-11-02 — Regional network group, a names-only leaders list, and leadership questions in Ask AI
 - **Regional network**: a new group on the News page (after Stakeholders) with three organisations: MIA (Malaysian Institute of Accountants), ISCA (Institute of Singapore Chartered Accountants) and MICPA (Malaysian Institute of Certified Public Accountants). The daily collection watches their websites, news and leadership pages from its next run. New organisations can be put in this group on the Members screen.
 - **Finding the President**: when a website's links never say "leadership" (or the pages found name nobody), the daily page watch now searches the site for "president" and tries a few common page addresses. A page only counts if it names a top role. These extra tries are quiet: a miss is not reported as an error. Pages set by staff (leadership_url) are always used as they are.

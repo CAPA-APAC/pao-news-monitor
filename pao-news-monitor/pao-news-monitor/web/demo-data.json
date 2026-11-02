@@ -3502,6 +3502,23 @@
  ],
  "briefs": [
   {
+   "period_start": "2026-10-21T08:58:25+00:00",
+   "period_end": "2026-10-28T08:58:25+00:00",
+   "status": "draft",
+   "content": "# Weekly recap\n**22 Oct – 28 Oct 2026**\n\n> Draft written with AI (sample:demo) - please review before sending. The highlight summaries are written by AI from each article; titles link to the original pages. Items tagged (or AI-suggested) Low or No relevance are not included.\n\n## Highlights\n### [SAMPLE - IESBA opens consultation on technology and ethics](https://example.org/sample)\nIESBA · 27 Oct 2026 · Open for comment\nSAMPLE - IESBA is asking for views on how the Code should treat the use of AI and other technology by professional accountants. A coordinated response from Asia-Pacific PAOs would make the region's view more visible.\n\n### [SAMPLE - JICPA elects a new president](https://example.org/sample)\nJICPA · 25 Oct 2026 · Leadership\nSAMPLE - JICPA has elected a new president for the coming term. A congratulation letter and an early introduction to CAPA's work would be timely.\n\n## Other high\n- [SAMPLE - ICAI issues guidance on sustainability assurance](https://example.org/sample) · ICAI · 27 Oct 2026\n- [SAMPLE - PICPA welcomes its new National President](https://example.org/sample) · PICPA · 26 Oct 2026 · Leadership\n- [SAMPLE - CA Sri Lanka council election results](https://example.org/sample) · CA Sri Lanka · 24 Oct 2026 · Leadership\n\n## Medium\n- [SAMPLE - The Chartered Accountant Journal, October 2026 issue](https://example.org/sample) · ICAI · 26 Oct 2026\n- [SAMPLE - National Conference 2026: registration open](https://example.org/sample) · ICAI · 25 Oct 2026\n- [SAMPLE - Business valuation and professional judgement with AI](https://example.org/sample) · CNCC · 24 Oct 2026\n- [SAMPLE - Institute statement on a new auditing standard](https://example.org/sample) · HKICPA · 23 Oct 2026\n\n## No news found\nAAT, ACCA, ADB, AE, AFA, CA ANZ, CPA Australia, FICA, IPA, KICPA, VACPA.\n",
+   "sources": [],
+   "models_used": "sample:demo",
+   "stats": {
+    "items": 11,
+    "in_brief": 11,
+    "tagged": 11,
+    "quiet_paos": 44,
+    "notes": []
+   },
+   "created_at": "2026-10-28T08:58:25.230653+00:00",
+   "id": 2
+  },
+  {
    "period_start": "2026-10-14T08:58:25+00:00",
    "period_end": "2026-10-21T08:58:25+00:00",
    "status": "draft",

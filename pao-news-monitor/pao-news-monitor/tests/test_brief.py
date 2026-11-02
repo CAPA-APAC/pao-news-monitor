@@ -98,41 +98,77 @@ TAGS = json.dumps([
     {"n": 2, "summary": "ICAI launched an AI audit toolkit.", "themes": ["ai_digital"], "importance": 3, "leadership": False},
     {"n": 3, "summary": "IESBA consults on technology ethics; comments due 30 Nov.", "themes": ["ethics_standards", "ai_digital"], "importance": 3},
 ])
-BRIEF = "# Title the model added\n## Headlines\n- ICAI launched an AI audit toolkit [2]\n## Sources\n[1] junk the model made up"
+EXPLAIN = json.dumps([{"n": 1, "text": "ICAI launched an AI audit toolkit. Other PAOs may want to compare notes."},
+                      {"n": 2, "text": "IESBA is consulting on technology ethics; comments are due on 30 November."}])
 
 
-def test_brief_with_ai(tmp_path):
+class Page:
+    def __init__(self, status=404, text=""):
+        self.status, self.text = status, text
+
+
+def no_pages(url):
+    return Page()
+
+
+def build(store, http=None, env=ENV, fetcher=no_pages):
+    chain = ai.Chain(env=env, session=http or FakeHTTP({}), sleep=lambda s: None)
+    return brief.build(store, days=7, chain=chain, now=NOW, fetcher=fetcher)
+
+
+def test_recap_with_ai(tmp_path):
     store = make_store(tmp_path)
-    http = FakeHTTP({"m1": [answer(TAGS)], "big": [answer(BRIEF)]})
-    row = brief.build(store, days=7, chain=ai.Chain(env=ENV, session=http, sleep=lambda s: None), now=NOW)
+    row = build(store, FakeHTTP({"m1": [answer(TAGS)], "big": [answer(EXPLAIN)]}))
     c = row["content"]
     assert row["status"] == "draft" and row["stats"]["items"] == 3          # not_relevant, baseline and old excluded
     assert row["stats"]["tagged"] == 3 and row["models_used"] == "github:m1, github:big"
-    assert c.startswith("# CAPA weekly intelligence brief") and "Title the model added" not in c
-    assert "## Headlines" in c and "junk the model made up" not in c
-    assert "## No news found this week\nSIA." in c                         # quiet PAOs by code, not AI
-    assert "## Sources" in c and "https://x.org/a" in c
-    # leadership item ranked into the brief, and AI tags saved on items
+    assert c.startswith("# Weekly recap\n**12 Oct – 18 Oct 2026**")
+    for section in ("## Highlights", "## Other high", "## Medium", "## No news found\nSIA."):
+        assert section in c
+    # titles link straight to the page; no numbered citations or source list
+    assert "### [ICAI launches AI audit toolkit for members](https://x.org/a)" in c
+    assert "ICAI launched an AI audit toolkit. Other PAOs may want to compare notes." in c
+    assert "[1]" not in c and "## Sources" not in c
+    # the page-watch notice is listed but never leads (its title is a diff)
+    hl = c.split("## Other high")[0]
+    assert "x.org/e" not in hl and "x.org/e" in c
     assert {s["item_id"] for s in row["sources"]} == {"a", "b", "e"}
     assert store.data["items"]["a"]["ai_themes"] == ["ai_digital"]
-    assert store.data["items"]["b"]["ai_summary"].startswith("IESBA consults")
 
 
-def test_brief_without_ai_is_a_plain_list(tmp_path):
+def test_recap_without_ai_uses_the_excerpt(tmp_path):
     store = make_store(tmp_path)
-    row = brief.build(store, days=7, chain=ai.Chain(env={}, session=FakeHTTP({})), now=NOW)
+    store.data["items"]["a"]["snippet"] = "The toolkit helps auditors test AI systems."
+    store.data["items"]["a"]["ai_relevance"] = "high"
+    row = build(store, env={})
     c = row["content"]
-    assert row["models_used"] == "none (plain list)"
-    assert "No AI model was available" in c and "### ICAI" in c and "### IESBA" in c
-    assert "ICAI launches AI audit toolkit for members [" in c
+    assert row["models_used"] == "none" and "No AI model was available" in c
+    assert "The toolkit helps auditors test AI systems." in c
     assert any("stopped" in n for n in row["stats"]["notes"])
 
 
-def test_brief_when_writer_fails_after_tagging(tmp_path):
+def test_recap_when_explanations_fail_uses_summaries(tmp_path):
     store = make_store(tmp_path)
     http = FakeHTTP({"m1": [answer(TAGS)], "big": [FakeResp(429, text="quota")], "m2": [FakeResp(429, text="quota")]})
-    row = brief.build(store, days=7, chain=ai.Chain(env=ENV, session=http, sleep=lambda s: None), now=NOW)
-    assert "This week's items by organisation" in row["content"] and row["stats"]["tagged"] == 3
+    row = build(store, http)
+    assert "ICAI launched an AI audit toolkit." in row["content"] and row["stats"]["tagged"] == 3
+    assert any("highlight explanations stopped" in n for n in row["stats"]["notes"])
+
+
+def test_highlights_get_the_article_text(tmp_path):
+    store = make_store(tmp_path)
+    store.data["items"]["a"]["relevance"] = "high"
+    seen = []
+
+    def fetcher(url):
+        seen.append(url)
+        return Page(200, "<html><body><nav>Menu</nav><p>" + "The toolkit covers model risk, data quality and audit trails. " * 3
+                    + "</p><footer><p>Copyright notice that is long enough to count as a paragraph here.</p></footer></body></html>")
+    http = FakeHTTP({"m1": [answer(TAGS)], "big": [answer(EXPLAIN)]})
+    build(store, http, fetcher=fetcher)
+    assert "https://x.org/a" in seen
+    sent = [c for c in http.calls]
+    assert "big" in sent
 
 
 def test_unreadable_200_skips_model():
@@ -199,18 +235,26 @@ def test_only_items_published_in_the_week(tmp_path):
     assert "june" not in got and "nodate" in got and "a" in got
 
 
-def test_staff_tags_steer_the_brief(tmp_path):
+def test_staff_tags_steer_the_recap(tmp_path):
     store = make_store(tmp_path)
-    store.data["items"]["a"]["relevance"] = "high"
-    store.data["items"]["b"]["relevance"] = "medium"
-    store.data["items"]["e"]["kind"] = "comment"
-    lines, _ = brief.numbered(brief.pick_for_brief(brief.gather(store, NOW - __import__("datetime").timedelta(days=7))),
-                              store.data["paos"])
-    text = "\n".join(lines)
-    assert "staff: HIGH" in text and "staff: MEDIUM" in text and "put under Open for comment" in text
-    for section in ("## Open for comment", "## Key developments", "## Other updates", "## Leadership changes"):
-        assert section in brief.BRIEF_SYSTEM
-    assert "Country updates" not in brief.BRIEF_SYSTEM and "No summits" in brief.BRIEF_SYSTEM
+    store.data["items"]["a"]["relevance"] = "medium"
+    store.data["items"]["b"]["relevance"] = "high"
+    store.data["items"]["f"] = dict(store.data["items"]["a"], id="f", title="ICAI consults on CPD rules", kind="comment",
+                                    relevance=None, url="https://x.org/f")
+    lead, other, mid = brief.lay_out(brief.gather(store, NOW - __import__("datetime").timedelta(days=7)))
+    assert lead[0]["id"] == "b"                                   # staff High leads
+    assert "e" in {i["id"] for i in other}                        # leadership change counts as high, never leads
+    assert "a" in {i["id"] for i in lead + mid}                   # staff Medium fills a highlight or goes under Medium
+    comment = next(i for i in lead + other if i["id"] == "f")     # opportunities to comment count as high
+    assert "Open for comment" in brief.meta(comment, store.data["paos"])
+
+
+def test_headline_links_and_escapes(tmp_path):
+    it = {"title": "PAO [draft] response (2026)", "url": "https://x.org/a b(1)", "language": "en"}
+    assert brief.headline(it) == "[PAO (draft) response (2026)](https://x.org/a%20b%281%29)"
+    jp = {"title": "日本公認会計士協会のお知らせ", "url": "https://x.org/j", "language": "ja", "ai_summary": "JICPA announced new CPD rules."}
+    assert brief.headline(jp) == "[JICPA announced new CPD rules.](https://x.org/j)"
+    assert brief.headline({"title": "Email only", "url": ""}) == "Email only"
 
 
 def test_low_and_no_relevance_stay_out_of_the_brief(tmp_path):
@@ -226,23 +270,3 @@ def test_removed_items_stay_out_of_the_brief(tmp_path):
     store.data["items"]["a"]["removed_at"] = "2026-10-17T00:00:00+00:00"
     got = {i["id"] for i in brief.gather(store, NOW - __import__("datetime").timedelta(days=7))}
     assert "a" not in got and "b" in got
-
-
-def test_open_for_comment_never_dropped():
-    """The AI wrote "None this week" while a staff-marked comment item was in the list: code adds it back."""
-    chosen = [{"id": "x", "pao_id": "ifrs", "title": "IFRS Foundation news alert", "kind": "news"},
-              {"id": "y", "pao_id": "ifrs", "title": "IFRS Foundation news alert", "kind": "comment",
-               "ai_summary": "ISSB consults on its proposals for nature-related disclosures."}]
-    paos = {"ifrs": {"abbr": "IFRS"}}
-    body = "## Open for comment\nNone this week.\n\n## Key developments\nNo key developments this week."
-    out = brief.ensure_comment_section(body, chosen, paos)
-    sec = out.split("## Key developments")[0]
-    assert "ISSB consults" in sec and "[2]" in sec and "None this week" not in sec
-    assert "## Key developments" in out
-    # already covered by the AI: left alone
-    ok = "## Open for comment\n- ISSB nature consultation [2]\n\n## Key developments\nx"
-    assert brief.ensure_comment_section(ok, chosen, paos) == ok
-    # section missing entirely: added at the top
-    assert brief.ensure_comment_section("## Key developments\nx", chosen, paos).startswith("## Open for comment")
-    # nothing marked for comment: unchanged
-    assert brief.ensure_comment_section(body, chosen[:1], paos) == body

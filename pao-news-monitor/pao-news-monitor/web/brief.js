@@ -16,6 +16,8 @@
   function inline(text, sources) {
     let h = esc(text);
     h = h.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/(^|[^*])\*(?!\s)(.+?)\*(?!\*)/g, "$1<em>$2</em>");
+    // [title](https://...) - recap titles link straight to the page
+    h = h.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (m, text, url) => `<a href="${url}" target="_blank" rel="noopener">${text}</a>`);
     h = h.replace(/\[(\d{1,3}(?:\s*[,;]\s*\d{1,3})+)\]/g, (m, list) => list.split(/[,;]/).map((n) => `[${n.trim()}]`).join(""));  // [3, 5] -> [3][5]
     h = h.replace(/\[(\d{1,3})\]/g, (m, n) => {
       const s = sources[n];
@@ -45,6 +47,79 @@
     flushPara(); flushList();
     return out.join("\n");
   }
+
+  // ---------- recap layout (newsletter template) ----------
+  // The recap is stored as plain Markdown with fixed sections, so staff can edit it as text:
+  //   # Title / **date** / > staff note / ## Highlights (### [title](url), meta line, text) /
+  //   ## Other high (- bullets) / ## Medium (- bullets) / ## No news found
+  // Older briefs (numbered [n] citations) have no "## Highlights" and keep the old rendering.
+  const LABELS = { other: "Other key news", medium: "Also worth knowing" };
+  const BRAND = "#D1204E";
+  function parseRecap(md) {
+    if (!/^##\s+Highlights\s*$/im.test(md || "")) return null;
+    const r = { title: "", date: "", highlights: [], other: [], medium: [], quiet: "", extra: [] };
+    let sec = "", cur = null;
+    for (const raw of md.split("\n")) {
+      const line = raw.trim();
+      let m;
+      if ((m = line.match(/^#\s+(.*)$/))) { r.title = m[1]; continue; }
+      if ((m = line.match(/^##\s+(.*)$/))) {
+        const t = m[1].toLowerCase();
+        sec = t.startsWith("highlight") ? "hl" : t.startsWith("other") ? "other" : /^(medium|mid|also)/.test(t) ? "medium"
+          : t.startsWith("no news") ? "quiet" : "extra";
+        if (sec === "extra") r.extra.push(line);
+        cur = null; continue;
+      }
+      if (!sec) { if ((m = line.match(/^\*\*(.+)\*\*$/))) r.date = m[1]; continue; }   // title block; staff note skipped
+      if (sec === "hl") {
+        if ((m = line.match(/^###\s+(.*)$/))) { cur = { title: m[1], meta: "", text: [] }; r.highlights.push(cur); }
+        else if (cur && line) { if (!cur.meta) cur.meta = line; else cur.text.push(line); }
+      } else if (sec === "other" || sec === "medium") {
+        if ((m = line.match(/^[-*•]\s+(.*)$/))) r[sec].push(m[1]);
+      } else if (sec === "quiet") { if (line) r.quiet += (r.quiet ? " " : "") + line; }
+      else r.extra.push(raw);
+    }
+    return r;
+  }
+  // "[title](url) · ICAI · 1 Nov 2026" -> title link + grey details
+  function splitLine(s) {
+    const m = s.match(/^(\[[^\]]+\]\([^)]+\)|[^·]+?)\s*·\s*(.*)$/);
+    return m ? [m[1], m[2]] : [s, ""];
+  }
+  function recapHtml(r) {
+    const box = (label, inner, cls) => `<section class="recap-box ${cls}"><h2>${esc(label)}</h2><div class="recap-body">${inner}</div></section>`;
+    const hl = (h) => h ? `<h3>${inline(h.title, {})}</h3><p class="recap-meta">${inline(h.meta, {})}</p><p>${inline(h.text.join(" "), {})}</p>` : `<p class="muted">Nothing stood out in this period.</p>`;
+    const list = (rows) => rows.length ? `<ul>${rows.map((x) => { const [t, d] = splitLine(x); return `<li>${inline(t, {})}${d ? `<span class="recap-meta">${inline(d, {})}</span>` : ""}</li>`; }).join("")}</ul>` : `<p class="muted">None this time.</p>`;
+    return `<header class="recap-head"><p class="recap-date">${inline(r.date, {})}</p><h1 class="recap-title">${esc(r.title || "Recap")}</h1></header>
+      <div class="recap-grid">${box("Highlight 1", hl(r.highlights[0]), "hl1")}${box("Highlight 2", hl(r.highlights[1]), "hl2")}
+        ${box(LABELS.other, list(r.other), "other")}${box(LABELS.medium, list(r.medium), "mid")}</div>
+      ${r.extra.length ? render(r.extra.join("\n"), []) : ""}
+      ${r.quiet ? `<p class="recap-quiet"><b>No news found:</b> ${esc(r.quiet)}</p>` : ""}`;
+  }
+  // Same layout for Outlook and Word: tables and inline styles only (email clients ignore page CSS).
+  function recapEmailHtml(r, bannerSrc) {
+    const font = "font-family:'Century Gothic',Poppins,Arial,sans-serif";
+    const a = (h) => h.replace(/<a href=/g, `<a style="color:#1d1d1f;text-decoration:underline;text-decoration-color:${BRAND}" href=`);
+    const head = (label) => `<div style="background:${BRAND};color:#fff;${font};font-weight:700;font-size:17px;text-align:center;padding:10px 8px">${esc(label)}</div>`;
+    const cell = (inner, extra = "") => `<td valign="top" style="border:1px solid #d9d9de;padding:0;${extra}">${inner}</td>`;
+    const hl = (h) => `<div style="padding:12px 14px">${h ? `<p style="margin:0 0 6px;${font};font-size:16px;font-weight:700;line-height:1.3">${a(inline(h.title, {}))}</p>
+        <p style="margin:0 0 8px;font-size:12px;color:#6e6e73">${inline(h.meta, {})}</p><p style="margin:0;font-size:14px;line-height:1.5">${a(inline(h.text.join(" "), {}))}</p>`
+      : `<p style="margin:0;color:#6e6e73">Nothing stood out in this period.</p>`}</div>`;
+    const list = (rows) => `<div style="padding:10px 14px">${rows.length ? rows.map((x) => { const [t, d] = splitLine(x);
+      return `<p style="margin:0 0 10px;font-size:14px;line-height:1.4">${a(inline(t, {}))}${d ? `<br><span style="font-size:12px;color:#6e6e73">${inline(d, {})}</span>` : ""}</p>`; }).join("")
+      : `<p style="margin:0;color:#6e6e73">None this time.</p>`}</div>`;
+    return `<table role="presentation" width="760" cellpadding="0" cellspacing="0" style="width:760px;max-width:100%;border-collapse:collapse;font-family:Calibri,Arial,sans-serif;color:#1d1d1f">
+      <tr><td colspan="3" style="padding:0">${bannerSrc ? `<img src="${bannerSrc}" width="760" alt="CAPA - Connecting the region, shaping a future-ready profession" style="display:block;width:100%;max-width:760px;height:auto;border:0">` : ""}</td></tr>
+      <tr><td colspan="3" style="padding:14px 0 16px"><p style="margin:0;${font};font-size:15px;font-weight:700">${inline(r.date, {})}</p>
+        <p style="margin:2px 0 0;${font};font-size:40px;font-weight:800;color:${BRAND};letter-spacing:.5px;line-height:1.1">${esc((r.title || "Recap").toUpperCase())}</p></td></tr>
+      <tr>${cell(head("Highlight 1") + hl(r.highlights[0]), "width:33%")}${cell(head("Highlight 2") + hl(r.highlights[1]), "width:33%")}
+        <td rowspan="2" valign="top" style="border:1px solid #d9d9de;padding:0;width:34%">${head(LABELS.other) + list(r.other)}</td></tr>
+      <tr><td colspan="2" valign="top" style="border:1px solid #d9d9de;padding:0">${head(LABELS.medium) + list(r.medium)}</td></tr>
+      ${r.quiet ? `<tr><td colspan="3" style="padding:12px 0 0;font-size:12px;color:#6e6e73"><b>No news found:</b> ${esc(r.quiet)}</td></tr>` : ""}
+      <tr><td colspan="3" style="padding:12px 0 0;font-size:12px;color:#6e6e73">This recap was prepared with AI assistance from public sources and reviewed by CAPA staff. Titles link to the original pages.</td></tr>
+    </table>`;
+  }
+  const bannerUrl = () => new URL("brief-banner.jpg", location.href).href;
 
   // ---------- data ----------
   async function load() {
@@ -88,7 +163,9 @@
       ${current.send_error ? `<p class="send-state bad">Sending failed: ${esc(current.send_error)}. Fix it and press Send to mailing list again.</p>` : ""}`;
     if (editing) {
       t.innerHTML = `<button class="btn primary" id="brief-save" type="button">Save</button><button class="btn ghost" id="brief-cancel" type="button">Cancel</button>`;
-      body.innerHTML = meta + `<p class="muted small">Plain text with simple formatting: <code>## Heading</code>, <code>- bullet</code>, <code>**bold**</code>. Keep the [n] numbers - they link to the sources.</p>
+      body.innerHTML = meta + `<p class="muted small">${parseRecap(current.content)
+          ? "Plain text. Keep the section headings (<code>## Highlights</code>, <code>## Other high</code>, <code>## Medium</code>). Each highlight is <code>### [title](link)</code>, then a details line, then the summary. Other stories are <code>- [title](link) · details</code>. The first line (<code># ...</code>) is the title."
+          : "Plain text with simple formatting: <code>## Heading</code>, <code>- bullet</code>, <code>**bold**</code>. Keep the [n] numbers - they link to the sources."}</p>
         <textarea id="brief-text" spellcheck="true">${esc(current.content || "")}</textarea>`;
       return;
     }
@@ -101,7 +178,10 @@
       `<button class="btn ghost" id="brief-copy" type="button" title="Copy with formatting, then paste into an Outlook email">Copy for email</button>`,
       `<button class="btn ghost" id="brief-word" type="button">Download Word</button>`,
     ].join("");
-    body.innerHTML = meta + `<article class="brief-doc" id="brief-doc">${render(current.content, current.sources)}</article>`;
+    const recap = parseRecap(current.content);
+    body.innerHTML = meta + (recap
+      ? `<article class="brief-doc recap" id="brief-doc">${recapHtml(recap)}</article>`
+      : `<article class="brief-doc" id="brief-doc">${render(current.content, current.sources)}</article>`);
   }
 
   // ---------- actions ----------
@@ -132,8 +212,9 @@
     return doc;
   }
   async function copy() {
+    const recap = parseRecap(current.content);
     const doc = forRecipients();
-    const html = doc.innerHTML;
+    const html = recap ? recapEmailHtml(recap, bannerUrl()) : doc.innerHTML;
     try {
       await navigator.clipboard.write([new ClipboardItem({
         "text/html": new Blob([`<div style="font-family:Calibri,Arial,sans-serif">${html}</div>`], { type: "text/html" }),
@@ -147,16 +228,19 @@
     }
   }
   function word() {
-    const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"><style>${DOC_CSS}</style></head><body>${$("#brief-doc").innerHTML}</body></html>`;
+    const recap = parseRecap(current.content);
+    const inner = recap ? recapEmailHtml(recap, bannerUrl()) : $("#brief-doc").innerHTML;
+    const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"><style>${DOC_CSS}</style></head><body>${inner}</body></html>`;
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob(["﻿" + html], { type: "application/msword" }));
-    a.download = `CAPA-weekly-brief-${(current.period_end || "").slice(0, 10)}.doc`;
+    a.download = `CAPA-${recap ? "recap" : "weekly-brief"}-${(current.period_end || "").slice(0, 10)}.doc`;
     a.click(); URL.revokeObjectURL(a.href);
   }
 
   // ---------- send to mailing list (from the user's own Outlook, everyone in BCC) ----------
   let sendList = [];
-  const subject = () => `CAPA weekly intelligence brief: ${fmt(current.period_start)} – ${fmt(current.period_end)}`;
+  const subject = () => { const r = parseRecap(current.content);
+    return r ? `CAPA ${r.title || "recap"}: ${r.date.replace(/\*/g, "")}` : `CAPA weekly intelligence brief: ${fmt(current.period_start)} – ${fmt(current.period_end)}`; };
   async function openSend() {
     try { sendList = (await A.loadMailingList()).filter((m) => m.active).map((m) => m.email); }
     catch (e) { return A.toast(/mailing_list|schema cache|does not exist/i.test(e.message) ? "Database needs updating: run supabase/update-5.sql" : e.message, true); }
@@ -224,4 +308,5 @@
   // leaving other views closes this one
   for (const sel of ["#admin-btn"]) document.querySelector(sel)?.addEventListener("click", () => { $("#brief-view").hidden = true; });
   A.renderBrief = render;   // for tests
+  A.parseRecap = parseRecap; A.recapEmailHtml = recapEmailHtml;
 })();
