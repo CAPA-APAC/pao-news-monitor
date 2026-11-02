@@ -419,14 +419,14 @@ dialog.zoom img { display: block; max-width: 100%; max-height: calc(100vh - 120p
 
 /* ---- the recap (newsletter layout, matches the emailed version) ---- */
 .brief-doc.recap { max-width: 1000px; }
-.recap-head { position: relative; aspect-ratio: 2.6 / 1; min-height: 190px; border-radius: 14px; overflow: hidden;
-  background: #fff url("brief-banner.jpg") center 42% / cover no-repeat; color: #1d1d1f;
-  display: flex; flex-direction: column; justify-content: center; padding: 6% 4% 0; }
-.recap-head::before { content: ""; position: absolute; inset: 0;
-  background: radial-gradient(ellipse 62% 48% at 24% 66%, rgb(255 255 255 / .82), rgb(255 255 255 / .45) 60%, transparent 100%); }
-.recap-head > * { position: relative; margin: 0; }
-.recap-date { font: 700 clamp(15px, 2vw, 19px)/1.2 var(--display); }
-.recap-title { font: 800 clamp(26px, 7.5vw, 64px)/1 var(--display); color: #d1204e; text-transform: uppercase; letter-spacing: .01em; }
+/* header: the whole skyline (never cropped), with the logo, date and title in the sky above it */
+.recap-head { position: relative; border-radius: 14px; overflow: hidden; background: #fff; color: #1d1d1f; }
+.recap-skyline { display: block; width: 100%; height: auto; }
+.recap-over { position: absolute; left: 3.5%; top: 6%; right: 40%; }
+.recap-over > * { margin: 0; }
+.recap-logo { display: block; width: clamp(120px, 26%, 210px); height: auto; margin-bottom: clamp(6px, 2vw, 18px); }
+.recap-date { font: 700 clamp(14px, 1.8vw, 19px)/1.2 var(--display); }
+.recap-title { font: 800 clamp(26px, 6vw, 60px)/1 var(--display); color: #d1204e; text-transform: uppercase; letter-spacing: .01em; }
 .recap-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-areas: "hl1 hl2 other" "mid mid other";
   gap: 14px; margin-top: 16px; align-items: stretch; }
 .recap-box { background: var(--panel); border: 1px solid var(--line-soft); border-radius: 12px; overflow: hidden; box-shadow: var(--shadow); }
@@ -446,7 +446,8 @@ dialog.zoom img { display: block; max-width: 100%; max-height: calc(100vh - 120p
 .recap-quiet { margin: 14px 2px 0; font-size: 13px; color: var(--muted); }
 @media (max-width: 860px) {
   .recap-grid { grid-template-columns: 1fr; grid-template-areas: "hl1" "hl2" "other" "mid"; }
-  .recap-head { aspect-ratio: auto; min-height: 150px; padding: 40px 16px 12px; background-position: 70% 42%; }
+  .recap-head { display: flex; flex-direction: column-reverse; }
+  .recap-over { position: static; padding: 16px 16px 4px; }
 }
 @media (max-width: 800px) { .brief-layout { grid-template-columns: 1fr; } .brief-side { position: static; } }
 
