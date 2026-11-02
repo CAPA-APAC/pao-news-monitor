@@ -13,7 +13,7 @@ import threading
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 
-from . import browser, email_inbox, news_search, pagewatch, relevance, websites
+from . import browser, email_inbox, leaders, news_search, pagewatch, relevance, websites
 from .common import PAO, iso, load_paos, log, now_utc
 from .store import get_store
 
@@ -248,6 +248,16 @@ def run(only=None, sources=None, dry_run=False, workers=8):
         uniq = {(r["pao_id"], r["url"], r["kind"]): r for r in page_rows}
         store.save_pages(list(uniq.values()))
 
+    # President / Deputy / Vice Presidents, names only, read from the saved leadership pages
+    # (supabase/update-19.sql); never fails the run
+    leaders_note = None
+    if not problems and "page_watch" in sources:
+        try:
+            leaders_note = leaders.update(store, list(uniq.values()))
+        except Exception as e:   # noqa: BLE001
+            log.warning("Leaders skipped: %s", e)
+            leaders_note = f"Leaders: skipped ({type(e).__name__})"
+
     health_rows = []
     for res in results:
         new_count = sum(1 for it in res.items if it.id in inserted)
@@ -282,6 +292,7 @@ def run(only=None, sources=None, dry_run=False, workers=8):
         "changes": sum(1 for r in rows if r["id"] in inserted and r["source"] == "page_watch"),
         "db_update_needed": problems or None,
         "ai_relevance": ai_note,
+        "leaders": leaders_note,
     }
     store.log_run({"started_at": iso(started), "finished_at": iso(now_utc()), "summary": summary})
 
@@ -304,6 +315,8 @@ def write_step_summary(health_rows, summary, rows, inserted):
            f"{summary['errors']} error(s), {summary['warnings']} warning(s)", ""]
     if summary.get("ai_relevance"):
         out += [summary["ai_relevance"], ""]
+    if summary.get("leaders"):
+        out += [summary["leaders"], ""]
     if summary.get("db_update_needed"):
         out += [f"> **Database needs updating** (missing {', '.join(summary['db_update_needed'])}): paste "
                 "`supabase/update-2.sql` into Supabase > SQL Editor and Run.", ""]

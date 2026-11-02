@@ -13,8 +13,8 @@
   const can = (p) => state.role === "admin" || (state.perms || []).includes(p);
   const RELEVANCE_LABEL = { high: "High", medium: "Medium", low: "Low", none: "No relevance" };
   const KIND_LABEL = { news: "News", events: "Event", publications: "Publication", articles: "Newsletter / article", comment: "Opportunity to comment", leadership: "Leadership change", contact: "Contact change" };
-  const GROUP_ORDER = ["Member", "Associate", "Affiliate", "Stakeholder", "Inbox"];
-  const GROUP_LABEL = { Member: "Members", Associate: "Associates", Affiliate: "Affiliates", Stakeholder: "Stakeholders", Inbox: "Inbox" };
+  const GROUP_ORDER = ["Member", "Associate", "Affiliate", "Stakeholder", "Regional network", "Inbox"];
+  const GROUP_LABEL = { Member: "Members", Associate: "Associates", Affiliate: "Affiliates", Stakeholder: "Stakeholders", "Regional network": "Regional network", Inbox: "Inbox" };
   const STALE_DAYS = 60;
   const NOTE_FILTER_KEY = "pao-news-filters";
 

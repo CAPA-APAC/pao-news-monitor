@@ -88,6 +88,24 @@ class SupabaseStore:
     def mailing_list(self):
         return self._req("GET", "/mailing_list?select=email,name,active&active=is.true").json()
 
+    # ---- leaders on file: names only (supabase/update-19.sql) ----
+    def leaders_ready(self):
+        try:
+            self._req("GET", "/pao_leaders?select=pao_id&limit=1")
+            return True
+        except RuntimeError:
+            return False
+
+    def replace_leaders(self, pao_id, rows):
+        pid = quote(pao_id, safe="")
+        self._req("DELETE", f"/pao_leaders?pao_id=eq.{pid}", headers={"Prefer": "return=minimal"})
+        if rows:
+            self._req("POST", "/pao_leaders", json=rows, headers={"Prefer": "return=minimal"})
+
+    def mark_leaders_checked(self, pao_id, when):
+        self._req("PATCH", f"/paos?id=eq.{quote(pao_id, safe='')}", json={"leaders_checked_at": when},
+                  headers={"Prefer": "return=minimal"})
+
     def update_brief(self, brief_id, patch):
         self._req("PATCH", f"/briefs?id=eq.{int(brief_id)}", json=patch, headers={"Prefer": "return=minimal"})
 
@@ -221,6 +239,18 @@ class JsonStore:
 
     def mailing_list(self):
         return [m for m in self.data.get("mailing_list", []) if m.get("active", True)]
+
+    def leaders_ready(self):
+        return True
+
+    def replace_leaders(self, pao_id, rows):
+        self.data["leaders"] = [r for r in self.data.get("leaders", []) if r["pao_id"] != pao_id] + list(rows)
+        self._save()
+
+    def mark_leaders_checked(self, pao_id, when):
+        if pao_id in self.data["paos"]:
+            self.data["paos"][pao_id]["leaders_checked_at"] = when
+            self._save()
 
     def update_brief(self, brief_id, patch):
         for b in self.data.get("briefs", []):

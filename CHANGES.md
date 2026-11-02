@@ -2,6 +2,13 @@
 
 Plain-language log of what changed and why, for anyone who isn't reading the code. One entry per fix or feature, newest first. See the User Guide for how to use each thing; see `_bmad-output/.../addendum.md` for technical detail.
 
+## 2026-11-02 — Regional network group, a names-only leaders list, and leadership questions in Ask AI
+- **Regional network**: a new group on the News page (after Stakeholders) with three organisations: MIA (Malaysian Institute of Accountants), ISCA (Institute of Singapore Chartered Accountants) and MICPA (Malaysian Institute of Certified Public Accountants). The daily collection watches their websites, news and leadership pages from its next run. New organisations can be put in this group on the Members screen.
+- **Finding the President**: when a website's links never say "leadership" (or the pages found name nobody), the daily page watch now searches the site for "president" and tries a few common page addresses. A page only counts if it names a top role. These extra tries are quiet: a miss is not reported as an error. Pages set by staff (leadership_url) are always used as they are.
+- **Leaders on file**: a small list of each organisation's President, Deputy President(s) and Vice President(s) - names only, read by the daily collection from the organisation's own leadership page, with the page address and the date read. Nothing else about the person is stored. A name is kept only if it appears word for word on that page, so the AI can't add a name the page doesn't show; if the AI finds nobody, the names already on file are kept. Each organisation is read again when its leadership page changes, or at least once a month (15 organisations per day while the list fills up).
+- **Ask AI**: questions like "who is their president?" (also VP, chair, CEO, council, board, leadership) now get the leaders on file and the lines saved from the leadership page, with dates. Ask AI says "(leadership page, read <date>)", gives both names with dates if the news or background disagrees, and says it doesn't know when nothing names the person. Whole-region questions get the list for every organisation.
+- Needs: (1) run `supabase/update-19.sql` once in the SQL Editor, (2) redeploy Ask AI from PowerShell - same command as before. The leaders list fills in over the next few daily runs.
+
 ## 2026-11-02 — Edit an item's title
 - Staff who can tag items now see **Edit title** under each news item. Type the corrected title and press Enter (or Save); Escape cancels.
 - The original title is kept and shown under the item ("Title corrected · was: …"), so a change can always be seen and undone.
