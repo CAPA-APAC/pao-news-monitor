@@ -8,7 +8,7 @@
   const $ = (s, el = document) => el.querySelector(s);
   const esc = A.esc;
   const XLSX_JS = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
-  const GROUPS = ["Member", "Associate", "Affiliate", "Stakeholder"];
+  const GROUPS = ["Member", "Associate", "Affiliate", "Stakeholder", "Regional network"];
   const CSV_COLS = ["id", "group", "jurisdiction", "name", "abbr", "website", "news_url", "feed_url", "search_terms",
     "news_locale", "link_selector", "active", "notes", "facebook", "leadership_url", "contact_url"];
 

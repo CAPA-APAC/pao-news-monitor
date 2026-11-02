@@ -4,7 +4,7 @@
 
 create table if not exists paos (
   id           text primary key,
-  grp          text,               -- Member / Associate / Affiliate / Stakeholder / Inbox
+  grp          text,               -- Member / Associate / Affiliate / Stakeholder / Regional network / Inbox
   jurisdiction text,
   name         text not null,
   abbr         text,

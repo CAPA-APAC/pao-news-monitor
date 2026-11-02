@@ -6,7 +6,8 @@
 // _bmad-output/planning-artifacts/architecture/ask-ai-architecture.md
 //
 // Guardrails (do not loosen without re-reading the architecture doc):
-//  - Answers are grounded ONLY in the PAO's collected items + the CAPA context below.
+//  - Answers are grounded ONLY in the PAO's collected items + the CAPA context below (plus, on file, the
+//    PAO's background profile and - for leadership questions - its names-only leaders list and saved leadership page).
 //  - No tool call claims web research - these providers, called this way, cannot browse.
 //  - Every material claim must cite [n] matching the numbered item list given to the model.
 //  - Thread length is capped (MAX_TURNS) so one conversation can't grow without bound.
@@ -14,11 +15,12 @@
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { COLLABORATION_GUIDELINES } from "./capa_context.ts";
 import { dedupe, type Item, pickForTopic, questionWindowDays, rank, when, withinDays } from "./select.ts";
+import { isLeadershipQuestion, type Leader, type LeaderPage, leadersBlock, regionLeadersBlock } from "./leaders.ts";
 
 // Evidence rules (added after a whole-region answer invented a membership count and called an item "today"):
 // the model may only assert what the numbered items say, and must use their dates.
-const EVIDENCE_RULES = `Evidence rules: state only what the numbered items say (and, when a "Background on file" section is \
-given for the organisation, what that section says). Do not add figures, counts, membership \
+const EVIDENCE_RULES = `Evidence rules: state only what the numbered items say (and, when a "Background on file" or "Leaders on file" section is \
+given, what that section says). Do not add figures, counts, membership \
 numbers or background facts that no item supports (for example how many organisations a development affects, or what \
 a publication "usually" leads to). If you add general knowledge, put it under the heading "General background (not from \
 the items)". Use the dates shown in the item list; do not call an item "today" or "yesterday" unless its date says so. \
@@ -225,6 +227,23 @@ async function handle(req: Request): Promise<Response> {
     return `[${i + 1}] ${org}${date} | ${it.source}${it.kind && it.kind !== "news" ? ` (${it.kind === "comment" ? "opportunity to comment" : it.kind})` : ""}${rel} | ${it.title}${it.snippet ? `\n    ${short(it.snippet)}` : ""}`;
   });
 
+  // "Who is their president?" and the like: add the names-only leaders list (and, for one PAO, the lines saved
+  // from its leadership page). Missing table (update-19.sql not run) = nothing added.
+  let leaders = "";
+  if (isLeadershipQuestion(question, firstQ)) {
+    const LEADER_COLS = "pao_id,role,name,source_url,as_of";
+    if (region) {
+      const { data } = await svc.from("pao_leaders").select(LEADER_COLS);
+      leaders = regionLeadersBlock((data ?? []) as Leader[], abbr);
+    } else {
+      const [ld, pg] = await Promise.all([
+        svc.from("pao_leaders").select(LEADER_COLS).eq("pao_id", pao_id),
+        svc.from("watched_pages").select("url,snapshot,last_checked_at").eq("pao_id", pao_id).eq("kind", "leadership"),
+      ]);
+      leaders = leadersBlock(pao!.name, (ld.data ?? []) as Leader[], (pg.data ?? []) as LeaderPage[]);
+    }
+  }
+
   const system = region
     ? `You are answering questions for CAPA staff about developments across CAPA's network - its member \
 PAOs and key stakeholders in Asia-Pacific and international bodies such as IFAC and the standard-setters.
@@ -232,7 +251,7 @@ PAOs and key stakeholders in Asia-Pacific and international bodies such as IFAC 
 ${COLLABORATION_GUIDELINES}
 
 ${EVIDENCE_RULES}
-
+${leaders}
 Whole-region questions: where the guidelines above talk about "the PAO", apply them across the organisations in \
 the items. Compare and contrast: name which organisations are doing what, note common patterns and differences, and \
 say where only one or two organisations show evidence. Each item starts with the organisation's abbreviation.
@@ -249,7 +268,7 @@ ${pao!.name} (${pao!.abbr ?? pao!.id}), ${pao!.grp ?? "Member"}, ${pao!.jurisdic
 ${COLLABORATION_GUIDELINES}
 
 ${EVIDENCE_RULES}
-${profileBlock(pao!)}
+${profileBlock(pao!)}${leaders}
 Collected items about ${pao!.name} (most recent first, numbered for citation; this is ALL the \
 evidence you have - you cannot browse the web):
 ${numbered.length ? numbered.join("\n\n") : windowDays ? "(Nothing was collected for this PAO in the period the question asks about. Say so plainly.)" : "(No items collected yet for this PAO.)"}

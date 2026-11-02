@@ -8,7 +8,7 @@
   const SUPABASE_JS = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js";
   const TESSERACT_JS = "https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js";
   const XLSX_JS = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
-  const GROUPS = ["Member", "Associate", "Affiliate", "Stakeholder"];
+  const GROUPS = ["Member", "Associate", "Affiliate", "Stakeholder", "Regional network"];
   const TYPES = { news: "News", events: "Event", publications: "Publication", articles: "Newsletter / article", comment: "Opportunity to comment" };
   // Google News edition / language -> OCR language(s); English is always added for names and dates
   const OCR_LANG = { zh: "chi_sim", "zh-HK": "chi_tra", "zh-TW": "chi_tra", ja: "jpn", ko: "kor", vi: "vie", fr: "fra",

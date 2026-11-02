@@ -79,6 +79,16 @@ CONTACT_LINK = re.compile(r"contact|联系|聯絡|聯繫|お問い合わせ|ア�
 NOT_A_PAGE = re.compile(r"\.(pdf|jpg|jpeg|png|gif|zip|docx?|xlsx?)($|\?)|mailto:|tel:|javascript:|facebook|linkedin|twitter|youtube|instagram", re.I)
 LEADERSHIP_SKIP = re.compile(r"past[\s-]?president|former[\s-]?president|message|communiqu|news|speech|event|award", re.I)
 
+# When a site's links don't say "leadership", look for the President another way (quietly - misses
+# here are expected and are not reported as errors): the site's own search for "president", then
+# a few common page addresses. A page only counts if it really names a top role.
+PRESIDENT_SEARCHES = ("/?s=president", "/search?q=president", "/search?query=president", "/search?keyword=president")
+COMMON_LEADERSHIP_PATHS = (
+    "/about-us/leadership", "/about/leadership", "/leadership", "/about-us/council", "/about/council", "/council",
+    "/about-us/office-bearers", "/office-bearers", "/about-us/board", "/about/board", "/president",
+)
+SEARCH_URL = re.compile(r"[?&](s|q|query|keyword|search)=", re.I)
+
 
 def page_lines(html, keep_footer=False):
     """Visible text, one line per block element."""
@@ -156,6 +166,39 @@ def find_pages(html, base_url):
     return [h for _, _, h in ranked], contact
 
 
+def search_for_leadership(peek, website):
+    """Leadership pages for a site whose links never say "leadership": first the site's own search for
+    "president", then a few common addresses. A page is only kept if it names a top role.
+    peek(url) returns a response, or None for anything that didn't open."""
+    parts = urlsplit(website)
+    root = f"{parts.scheme or 'https'}://{parts.netloc}"
+    found = []
+
+    def names_a_leader(url):
+        r = peek(url)
+        if r is not None and leadership_lines(r.text):
+            key = r.url.rstrip("/").lower()
+            if key not in {u.rstrip("/").lower() for u in found}:
+                found.append(r.url)
+
+    for path in PRESIDENT_SEARCHES:
+        r = peek(root + path)
+        if r is None:
+            continue
+        candidates = [u for u in find_pages(r.text, r.url)[0] if not SEARCH_URL.search(u)]
+        for url in candidates[:3]:
+            names_a_leader(url)
+            if len(found) >= MAX_LEADERSHIP_PAGES:
+                break
+        break   # one search page that opened is enough (many sites ignore the query and show the homepage)
+    if not found:
+        for path in COMMON_LEADERSHIP_PATHS:
+            names_a_leader(root + path)
+            if found:
+                break
+    return found[:MAX_LEADERSHIP_PAGES]
+
+
 def snapshot_hash(lines):
     return hashlib.sha1("\n".join(lines).encode("utf-8")).hexdigest()[:16]
 
@@ -222,42 +265,69 @@ def collect(pao, prev_pages, fetcher=None, browser_mode=False):
         lead_pages = lead_pages or found_lead[:MAX_LEADERSHIP_PAGES]
         contact_pages = contact_pages or ([found_contact] if found_contact else [])
 
+    # no leadership link found: pages that worked before (saved snapshots) beat guessing again
+    if not lead_pages:
+        lead_pages = [u for (pid, u, kind), row in prev_pages.items()
+                      if pid == pao.id and kind == "leadership" and (row or {}).get("snapshot")][:MAX_LEADERSHIP_PAGES]
+
+    def peek(url):
+        """Like get(), but a miss is expected and not reported (used when hunting for the President)."""
+        try:
+            r = fetcher(url)
+        except Exception:  # noqa: BLE001
+            return None
+        return r if r.status < 400 else None
+
     checked = {"leadership": 0, "contact": 0}
-    for kind, urls, extract in (("leadership", lead_pages, leadership_lines), ("contact", contact_pages, contact_lines)):
-        for url in urls:
-            r = get(url)
-            if r is None:
-                continue
-            lines = extract(r.text)
-            prev = prev_pages.get((pao.id, url, kind))
-            old_lines = (prev or {}).get("snapshot", "").split("\n") if (prev or {}).get("snapshot") else []
-            # older snapshots were saved before counters were ignored - clean them the same way
-            old_lines = denoise_all(old_lines)
-            row = {"pao_id": pao.id, "url": url, "kind": kind, "last_checked_at": iso(now),
-                   "status": "ok", "message": f"{len(lines)} line(s) watched"}
-            if not lines:
-                # nothing recognisable: keep the old snapshot rather than report everything as removed
-                row.update(status="warning", message="no names/contact lines found on this page")
-                if not prev:
-                    row.update(snapshot="", first_seen_at=iso(now))
-                res.pages.append(row)
-                continue
-            checked[kind] += 1
-            row["snapshot"] = "\n".join(lines)
-            if not prev or not old_lines:
-                row["first_seen_at"] = iso(now)
-                res.pages.append(row)
-                continue
-            removed, added = diff(old_lines, lines)
-            if removed or added:
-                title, body = describe(kind, removed, added)
-                res.items.append(Item(
-                    id=make_id(pao.id, SOURCE, url, snapshot_hash(lines)), pao_id=pao.id, source=SOURCE,
-                    title=title, url=url, published_at=iso(now.astimezone(timezone.utc)), snippet=body,
-                    content=f"Before:\n{chr(10).join(old_lines)}\n\nNow:\n{chr(10).join(lines)}",
-                    source_name=urlsplit(r.url).netloc, language=pao.language, kind=kind))
-                row["last_changed_at"] = iso(now)
+
+    def watch(kind, url, extract):
+        r = get(url)
+        if r is None:
+            return
+        lines = extract(r.text)
+        prev = prev_pages.get((pao.id, url, kind))
+        old_lines = (prev or {}).get("snapshot", "").split("\n") if (prev or {}).get("snapshot") else []
+        # older snapshots were saved before counters were ignored - clean them the same way
+        old_lines = denoise_all(old_lines)
+        row = {"pao_id": pao.id, "url": url, "kind": kind, "last_checked_at": iso(now),
+               "status": "ok", "message": f"{len(lines)} line(s) watched"}
+        if not lines:
+            # nothing recognisable: keep the old snapshot rather than report everything as removed
+            row.update(status="warning", message="no names/contact lines found on this page")
+            if not prev:
+                row.update(snapshot="", first_seen_at=iso(now))
             res.pages.append(row)
+            return
+        checked[kind] += 1
+        row["snapshot"] = "\n".join(lines)
+        if not prev or not old_lines:
+            row["first_seen_at"] = iso(now)
+            res.pages.append(row)
+            return
+        removed, added = diff(old_lines, lines)
+        if removed or added:
+            title, body = describe(kind, removed, added)
+            res.items.append(Item(
+                id=make_id(pao.id, SOURCE, url, snapshot_hash(lines)), pao_id=pao.id, source=SOURCE,
+                title=title, url=url, published_at=iso(now.astimezone(timezone.utc)), snippet=body,
+                content=f"Before:\n{chr(10).join(old_lines)}\n\nNow:\n{chr(10).join(lines)}",
+                source_name=urlsplit(r.url).netloc, language=pao.language, kind=kind))
+            row["last_changed_at"] = iso(now)
+        res.pages.append(row)
+
+    for url in lead_pages:
+        watch("leadership", url, leadership_lines)
+    # The site doesn't call it "leadership" (or those pages name nobody): search the site for "president".
+    # Skipped when staff set leadership_url themselves - they chose the page.
+    if not checked["leadership"] and not pao.leadership_url and pao.website:
+        found = [u for u in search_for_leadership(peek, pao.website) if u not in lead_pages]
+        for url in found:
+            watch("leadership", url, leadership_lines)
+        if checked["leadership"]:
+            lead_pages = lead_pages + found
+            notes.append("leadership page found by searching the site for 'president'")
+    for url in contact_pages:
+        watch("contact", url, contact_lines)
 
     if not lead_pages:
         notes.append("no leadership page found - set leadership_url in paos.csv")
