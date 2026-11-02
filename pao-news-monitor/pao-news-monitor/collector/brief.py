@@ -120,7 +120,7 @@ def tag(chain, items, paos, notes):
             lines.append(f'{n}. [{p.get("abbr") or it["pao_id"]} | {it.get("source")} | {KIND_LABEL.get(it.get("kind") or "news", "news")}] '
                          f'{clean(it["title"], 220)}' + (f" - {snippet}" if snippet else ""))
         try:
-            text, model = chain.ask("fast", TAG_SYSTEM, "\n".join(lines), max_tokens=8000)
+            text, model = chain.ask("fast", TAG_SYSTEM, "\n".join(lines), max_tokens=8000, feature="tagging")
         except AIUnavailable as e:
             notes.append(f"tagging stopped: {e}")
             return False
@@ -307,7 +307,7 @@ def explain(chain, lead, paos, fetcher, notes):
         blocks.append(f"Story {n} - {meta(it, paos)}\nTitle: {clean(it.get('title'), 300)}\n"
                       f"Summary: {it.get('ai_summary') or '-'}\nText: {body or '-'}")
     try:
-        text, _ = chain.ask("smart", EXPLAIN_SYSTEM, "\n\n".join(blocks), max_tokens=3000, temperature=0.3)
+        text, _ = chain.ask("smart", EXPLAIN_SYSTEM, "\n\n".join(blocks), max_tokens=3000, temperature=0.3, feature="explain")
     except AIUnavailable as e:
         notes.append(f"highlight explanations stopped: {e}")
         return fallback, False
@@ -396,6 +396,7 @@ def build(store, days=7, chain=None, now=None, fetcher=None):
                   "quiet_paos": len(quiet), "notes": notes + chain.log[-15:]},
         "created_at": iso(now_utc()),
     }
+    getattr(chain, "flush_usage", lambda _s: None)(store)
     return row
 
 

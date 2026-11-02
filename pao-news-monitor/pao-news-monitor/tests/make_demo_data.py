@@ -1,7 +1,7 @@
 """Builds web/demo-data.json (sample data for demo mode). Run: python tests/make_demo_data.py"""
 import json
 import sys
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -104,8 +104,29 @@ with tempfile.TemporaryDirectory() as tmp:
     b["id"] = 1
     briefs = [b]
 
+def sample_usage():
+    """45 days of made-up AI usage rows for the Status page in demo mode."""
+    import random
+    rnd = random.Random(22)
+    base = datetime(2026, 11, 2, 12, 0, tzinfo=timezone.utc)
+    rows = []
+    for back in range(45, -1, -1):
+        day = base - timedelta(days=back)
+        for _ in range(2):
+            rows.append(("relevance", "groq:openai/gpt-oss-120b", 3900 + rnd.randint(-300, 300), 1100 + rnd.randint(-200, 200), day.replace(hour=21, minute=40)))
+        if day.weekday() == 0:
+            for _ in range(8):
+                rows.append(("tagging", "gemini:gemini-3.8-flash", 3000 + rnd.randint(-250, 250), 2400 + rnd.randint(-300, 300), day.replace(hour=0, minute=5)))
+            rows.append(("explain", "gemini:gemini-3.8-flash", 1700, 260, day.replace(hour=0, minute=9)))
+        for _ in range(rnd.choice([0, 0, 2, 4, 6, 9]) if day.weekday() < 5 else rnd.choice([0, 0, 1])):
+            model = rnd.choice(["groq:openai/gpt-oss-120b"] * 3 + ["gemini-3.8-flash"])
+            rows.append(("ask", model, 6400 + rnd.randint(0, 5000), 450 + rnd.randint(0, 500), day.replace(hour=rnd.randint(2, 10), minute=rnd.randint(0, 59))))
+    return [{"at": t.isoformat(), "feature": f, "model": m, "prompt_tokens": pt, "completion_tokens": ct} for f, m, pt, ct, t in rows]
+
+
 out = Path(__file__).resolve().parent.parent / "web" / "demo-data.json"
 out.write_text(json.dumps({"paos": paos, "items": items, "health": health, "briefs": briefs,
-                           "runs": [{"started_at": d(0.11), "finished_at": d(0.1), "summary": {"new": 4}}]},
+                           "runs": [{"started_at": d(0.11), "finished_at": d(0.1), "summary": {"new": 4}}],
+                           "usage": sample_usage()},
                           ensure_ascii=False, indent=1), encoding="utf-8")
 print("wrote", out, len(items), "items")

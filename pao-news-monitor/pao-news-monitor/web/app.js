@@ -111,6 +111,19 @@
       }
       return { paos: paos.data, health: health.data, lastRun: runs.data[0], items };
     },
+    // AI usage log (update-22.sql). Returns { rows } or { error } - a missing table is not a crash.
+    async usage(sinceIso) {
+      if (DEMO) return { rows: (this.demo.usage || []).filter((r) => r.at >= sinceIso) };
+      const rows = [];
+      for (let from = 0; ; from += 1000) {
+        const { data, error } = await db.from("ai_usage").select("at,feature,model,prompt_tokens,completion_tokens")
+          .gte("at", sinceIso).order("at", { ascending: true }).range(from, from + 999);
+        if (error) return { error: error.message || String(error) };
+        rows.push(...data);
+        if (data.length < 1000) break;
+      }
+      return { rows };
+    },
     async content(id) {
       if (DEMO) return this.demo.items.find((i) => i.id === id)?.content || "";
       const { data, error } = await db.from("items").select("content").eq("id", id).single();
@@ -577,10 +590,83 @@
       }).join("")}</tr>`).join("") + "</tbody>";
   }
 
+  // ---------- AI usage on the Status page: counts only (no questions or answers are ever stored) ----------
+  const USAGE_LABEL = { ask: "Ask AI", relevance: "Daily relevance check", tagging: "Brief: tagging", explain: "Brief: highlight explanations" };
+  let usageData = null;
+  const fmtTok = (n) => n >= 1e9 ? (n / 1e9).toFixed(2) + "B" : n >= 1e6 ? (n / 1e6).toFixed(2) + "M" : n >= 1e3 ? (n / 1e3).toFixed(1) + "K" : String(Math.round(n));
+  const fmtUsd = (v) => v === 0 ? "$0" : v < 0.01 ? "<$0.01" : "$" + v.toLocaleString("en-US", { minimumFractionDigits: v < 1 ? 3 : 2, maximumFractionDigits: v < 1 ? 3 : 2 });
+  function usagePrice() {
+    let p = { in: 0.10, out: 0.50 };
+    try { const x = JSON.parse(localStorage.getItem("pao-usage-price") || "null"); if (x && x.in >= 0 && x.out >= 0) p = x; } catch (e) { /* storage blocked */ }
+    return p;
+  }
+  async function loadUsage() {
+    const days = Number($("#us-range").value) || 30;
+    const since = new Date(Date.now() - days * 864e5).toISOString();
+    usageData = { days, ...(await api.usage(since)) };
+    renderUsage();
+  }
+  function renderUsage() {
+    const u = usageData;
+    if (!u) return;
+    const pr = usagePrice();
+    $("#us-pin").value = pr.in; $("#us-pout").value = pr.out;
+    const note = $("#us-note");
+    if (u.error) {
+      note.className = "small usage-note-warn";
+      note.textContent = /does not exist|schema cache|relation/i.test(u.error)
+        ? "Usage isn't being logged yet. Run supabase/update-22.sql in Supabase, then the next AI answer will appear here."
+        : "Couldn't load usage: " + u.error;
+      for (const id of ["#us-cards", "#us-bars", "#us-axis", "#us-feature", "#us-model"]) $(id).innerHTML = "";
+      return;
+    }
+    const rows = u.rows;
+    if (!rows.length) {
+      note.className = "muted small";
+      note.textContent = "Nothing logged in this period yet. Each Ask AI answer, daily relevance check and brief adds a row.";
+      for (const id of ["#us-cards", "#us-bars", "#us-axis", "#us-feature", "#us-model"]) $(id).innerHTML = "";
+      return;
+    }
+    note.className = "muted small";
+    note.textContent = "Requests and tokens the AI models have handled. Only counts are stored, never the questions, answers or article text.";
+    const cost = (i, o) => i / 1e6 * pr.in + o / 1e6 * pr.out;
+    const tot = rows.reduce((a, r) => ({ n: a.n + 1, i: a.i + (r.prompt_tokens || 0), o: a.o + (r.completion_tokens || 0) }), { n: 0, i: 0, o: 0 });
+    // per day (UTC date), every day of the period shown
+    const byDay = {};
+    for (const r of rows) { const k = r.at.slice(0, 10); (byDay[k] ||= { n: 0, t: 0 }); byDay[k].n++; byDay[k].t += (r.prompt_tokens || 0) + (r.completion_tokens || 0); }
+    const days = [];
+    for (let i = u.days - 1; i >= 0; i--) days.push(new Date(Date.now() - i * 864e5).toISOString().slice(0, 10));
+    const max = Math.max(1, ...days.map((k) => byDay[k]?.t || 0));
+    const busiest = days.reduce((b, k) => ((byDay[k]?.t || 0) > (byDay[b]?.t || 0) ? k : b), days[0]);
+    $("#us-cards").innerHTML = [
+      ["Requests", tot.n.toLocaleString("en-US"), `${(tot.n / u.days).toFixed(1)} a day on average`],
+      ["Tokens", fmtTok(tot.i + tot.o), `${fmtTok(tot.i)} in, ${fmtTok(tot.o)} out`],
+      ["Estimated price", fmtUsd(cost(tot.i, tot.o)), `If paid at $${pr.in}/$${pr.out} per 1M tokens`],
+      ["Busiest day", new Date(busiest + "T00:00:00Z").toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" }), `${fmtTok(byDay[busiest]?.t || 0)} tokens, ${byDay[busiest]?.n || 0} requests`],
+    ].map(([a, b, c]) => `<div class="panel status-card"><span class="muted small">${a}</span><strong>${esc(b)}</strong><span class="muted small">${esc(c)}</span></div>`).join("");
+    $("#us-bars").innerHTML = days.map((k) => {
+      const d = byDay[k], label = new Date(k + "T00:00:00Z").toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
+      return d ? `<span class="us-bar" style="height:${Math.max(3, d.t / max * 100).toFixed(1)}%" title="${label}: ${fmtTok(d.t)} tokens, ${d.n} requests"></span>`
+               : `<span class="us-bar zero" title="${label}: no requests"></span>`;
+    }).join("");
+    const short = (k) => new Date(k + "T00:00:00Z").toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
+    $("#us-axis").innerHTML = `<span>${short(days[0])}</span><span>${short(days.at(-1))}</span>`;
+    const group = (keyFn, label) => {
+      const g = {};
+      for (const r of rows) { const k = keyFn(r); (g[k] ||= { n: 0, i: 0, o: 0 }); g[k].n++; g[k].i += r.prompt_tokens || 0; g[k].o += r.completion_tokens || 0; }
+      return `<thead><tr><th>${label}</th><th>Requests</th><th>Tokens in</th><th>Tokens out</th><th>Estimated price</th></tr></thead><tbody>` +
+        Object.entries(g).sort((a, b) => (b[1].i + b[1].o) - (a[1].i + a[1].o)).map(([k, v]) =>
+          `<tr><td>${esc(USAGE_LABEL[k] || k)}</td><td>${v.n.toLocaleString("en-US")}</td><td>${fmtTok(v.i)}</td><td>${fmtTok(v.o)}</td><td>${fmtUsd(cost(v.i, v.o))}</td></tr>`).join("") + "</tbody>";
+    };
+    $("#us-feature").innerHTML = group((r) => r.feature, "What it was for");
+    $("#us-model").innerHTML = group((r) => (r.model || "unknown").replace(/^[a-z]+:/, ""), "Model");
+  }
+
   function openStatus() {
     for (const sel of [".filters", ".layout", "#brief-view", "#admin-view", "#ask-view"]) document.querySelector(sel).hidden = true;
     $("#status-view").hidden = false;
     renderStatus();
+    loadUsage();
     window.scrollTo(0, 0);
   }
   function closeStatus() {
@@ -675,6 +761,12 @@
       }
     });
     $("#status-btn").addEventListener("click", openStatus);
+    $("#us-range").addEventListener("change", loadUsage);
+    for (const id of ["#us-pin", "#us-pout"]) $(id).addEventListener("change", () => {
+      const v = { in: Math.max(0, parseFloat($("#us-pin").value) || 0), out: Math.max(0, parseFloat($("#us-pout").value) || 0) };
+      try { localStorage.setItem("pao-usage-price", JSON.stringify(v)); } catch (e) { /* storage blocked */ }
+      renderUsage();
+    });
     $("#status-back").addEventListener("click", closeStatus);
     for (const sec of ["#brief-view", "#admin-view", "#status-view", "#ask-view"]) new MutationObserver(markNav).observe($(sec), { attributes: true, attributeFilter: ["hidden"] });
     // the profile menu closes after a choice, or when you click elsewhere

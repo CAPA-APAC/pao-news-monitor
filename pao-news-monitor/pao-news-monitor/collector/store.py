@@ -185,6 +185,9 @@ class SupabaseStore:
     def log_run(self, row):
         self._req("POST", "/runs", json=row, headers={"Prefer": "return=minimal"})
 
+    def log_ai_usage(self, rows):
+        self._req("POST", "/ai_usage", json=rows, headers={"Prefer": "return=minimal"})
+
 
 class JsonStore:
     """Dry-run store: everything goes to data/local.json so you can look at it."""
@@ -294,6 +297,10 @@ class JsonStore:
 
     def log_run(self, row):
         self.data["runs"].append(row)
+        self._save()
+
+    def log_ai_usage(self, rows):
+        self.data.setdefault("ai_usage", []).extend(rows)
         self._save()
 
 
