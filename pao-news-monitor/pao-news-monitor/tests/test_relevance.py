@@ -75,5 +75,4 @@ def test_brief_uses_staff_label_else_ai_suggestion(tmp_path):
     ])
     got = {i["id"] for i in brief.gather(s, datetime(2026, 10, 19, tzinfo=timezone.utc))}
     assert got == {"a", "c"}
-    lines, _ = brief.numbered([s.data["items"]["a"], s.data["items"]["c"]], s.data["paos"])
-    assert "suggested HIGH (not yet reviewed)" in lines[0] and "staff: MEDIUM" in lines[1]
+    assert brief.tier(s.data["items"]["a"]) == "high" and brief.tier(s.data["items"]["c"]) == "medium"

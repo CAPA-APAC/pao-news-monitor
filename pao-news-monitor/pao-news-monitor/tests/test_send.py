@@ -81,3 +81,37 @@ def test_empty_list_or_no_secrets(tmp_path):
 def test_drafts_are_never_sent(tmp_path):
     s = store_with(tmp_path, brief=dict(BRIEF, status="draft"))
     assert send_brief.send_pending(s, smtp_factory=FakeSMTP, env=ENV) == []
+
+
+RECAP = dict(BRIEF, content=(
+    "# Weekly recap\n**26 Oct – 1 Nov 2026**\n\n> Draft written with AI (x) - please review before sending.\n\n"
+    "## Highlights\n### [ICAI launches AI audit toolkit](https://icai.org/a)\nICAI · 30 Oct 2026\n"
+    "ICAI released a toolkit. Other PAOs may compare notes.\n\n"
+    "### [IESBA consults on tech ethics](https://iesba.org/b)\nIESBA · 29 Oct 2026 · Open for comment\nComments due 30 Nov.\n\n"
+    "## Other high\n- [CPA Australia new President](https://cpa.com/p) · CPA Australia · 1 Nov 2026 · Leadership\n\n"
+    "## Medium\n- [ICAB webinar <b>on</b> AI](https://icab.org/w) · ICAB · 28 Oct 2026\n\n## No news found\nSIA."))
+
+
+def test_recap_email_layout_with_banner(tmp_path):
+    FakeSMTP.sent = []
+    s = store_with(tmp_path, brief=RECAP)
+    assert send_brief.send_pending(s, smtp_factory=FakeSMTP, env=ENV)[0][1]
+    msg, _ = FakeSMTP.sent[0]
+    assert msg["Subject"] == "CAPA Weekly recap: 26 Oct – 1 Nov 2026"
+    html = msg.get_body(("html",)).get_content()
+    assert 'src="cid:capa-recap-banner"' in html and "WEEKLY RECAP" in html
+    assert ">Highlight 1<" in html and ">Other key news<" in html and ">Also worth knowing<" in html
+    assert 'href="https://icai.org/a"' in html and 'href="https://cpa.com/p"' in html     # titles are the links
+    assert "&lt;b&gt;on&lt;/b&gt;" in html                                              # still escaped
+    assert "Draft written with AI" not in html and "Titles link to the original pages" in html
+    images = [p for p in msg.walk() if p.get_content_type() == "image/jpeg"]
+    assert len(images) == 1 and images[0]["Content-ID"] == "<capa-recap-banner>"
+    text = msg.get_body(("plain",)).get_content()
+    assert "HIGHLIGHT 1: ICAI launches AI audit toolkit (https://icai.org/a)" in text
+
+
+def test_parse_recap_ignores_old_briefs():
+    assert send_brief.parse_recap(BRIEF["content"]) is None
+    r = send_brief.parse_recap(RECAP["content"])
+    assert r["title"] == "Weekly recap" and len(r["highlights"]) == 2 and r["quiet"] == "SIA."
+    assert r["highlights"][1]["meta"] == "IESBA · 29 Oct 2026 · Open for comment"

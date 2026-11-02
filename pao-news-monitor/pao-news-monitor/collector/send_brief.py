@@ -15,7 +15,7 @@ import sys
 from email.message import EmailMessage
 from email.utils import formataddr, make_msgid
 
-from .common import iso, now_utc
+from .common import ROOT, iso, now_utc
 from .store import get_store
 
 SENDER_NAME = os.environ.get("BRIEF_SENDER_NAME", "CAPA News Monitor")
@@ -23,6 +23,12 @@ BCC_PER_MESSAGE = 90          # Gmail accepts up to 100 recipients per message
 AI_NOTE = re.compile(r"^>\s*(Draft written by AI|No AI model was available).*$", re.M)
 FOOTER = ("This briefing was prepared with AI assistance from public sources and reviewed by CAPA staff. "
           "Numbers in [brackets] link to the sources.")
+RECAP_FOOTER = ("This recap was prepared with AI assistance from public sources and reviewed by CAPA staff. "
+                "Titles link to the original pages.")
+BANNER = ROOT / "web" / "brief-banner.jpg"
+BANNER_CID = "capa-recap-banner"
+BRAND = "#D1204E"
+LABELS = {"other": "Other key news", "medium": "Also worth knowing"}
 
 
 def for_sending(md):
@@ -34,6 +40,9 @@ def _inline(text, sources):
     h = html.escape(text, quote=True)
     h = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", h)
     h = re.sub(r"(^|[^*])\*(?!\s)(.+?)\*(?!\*)", r"\1<em>\2</em>", h)
+    # [title](https://...) - recap titles link straight to the page
+    h = re.sub(r"\[([^\]]+)\]\((https?://[^\s)]+)\)",
+               lambda m: f'<a href="{m.group(2)}" style="color:#1d1d1f;text-decoration:underline;text-decoration-color:{BRAND}">{m.group(1)}</a>', h)
     h = re.sub(r"\[(\d{1,3}(?:\s*[,;]\s*\d{1,3})+)\]", lambda m: "".join(f"[{n.strip()}]" for n in re.split(r"[,;]", m.group(1))), h)
 
     def cite(m):
@@ -102,17 +111,140 @@ def to_html(md, source_list):
             f'<p style="font-size:12px;color:#777">{html.escape(FOOTER)}</p></div>')
 
 
+# ---------- recap layout (same as the web page's Copy for email) ----------
+
+def parse_recap(md):
+    """The recap's sections, or None for an older brief (numbered citations, no "## Highlights")."""
+    if not re.search(r"^##\s+Highlights\s*$", md or "", re.I | re.M):
+        return None
+    r = {"title": "", "date": "", "highlights": [], "other": [], "medium": [], "quiet": "", "extra": []}
+    sec, cur = "", None
+    for raw in md.split("\n"):
+        line = raw.strip()
+        m = re.match(r"^#\s+(.*)$", line)
+        if m:
+            r["title"] = m.group(1)
+            continue
+        m = re.match(r"^##\s+(.*)$", line)
+        if m:
+            t = m.group(1).lower()
+            sec = ("hl" if t.startswith("highlight") else "other" if t.startswith("other")
+                   else "medium" if re.match(r"(medium|mid|also)", t) else "quiet" if t.startswith("no news") else "extra")
+            if sec == "extra":
+                r["extra"].append(line)
+            cur = None
+            continue
+        if not sec:
+            m = re.match(r"^\*\*(.+)\*\*$", line)
+            if m:
+                r["date"] = m.group(1)
+            continue
+        if sec == "hl":
+            m = re.match(r"^###\s+(.*)$", line)
+            if m:
+                cur = {"title": m.group(1), "meta": "", "text": []}
+                r["highlights"].append(cur)
+            elif cur is not None and line:
+                if not cur["meta"]:
+                    cur["meta"] = line
+                else:
+                    cur["text"].append(line)
+        elif sec in ("other", "medium"):
+            m = re.match(r"^[-*•]\s+(.*)$", line)
+            if m:
+                r[sec].append(m.group(1))
+        elif sec == "quiet":
+            if line:
+                r["quiet"] = (r["quiet"] + " " + line).strip()
+        else:
+            r["extra"].append(raw)
+    return r
+
+
+def _split_line(s):
+    m = re.match(r"^(\[[^\]]+\]\([^)]+\)|[^·]+?)\s*·\s*(.*)$", s)
+    return (m.group(1), m.group(2)) if m else (s, "")
+
+
+def recap_html(r, banner_src):
+    font = "font-family:'Century Gothic',Poppins,Arial,sans-serif"
+    esc = lambda t: html.escape(t or "", quote=True)
+    inl = lambda t: _inline(t or "", {})
+
+    def head(label):
+        return (f'<div style="background:{BRAND};color:#fff;{font};font-weight:700;font-size:17px;text-align:center;'
+                f'padding:10px 8px">{esc(label)}</div>')
+
+    def hl(h):
+        if not h:
+            return '<div style="padding:12px 14px"><p style="margin:0;color:#6e6e73">Nothing stood out in this period.</p></div>'
+        return (f'<div style="padding:12px 14px"><p style="margin:0 0 6px;{font};font-size:16px;font-weight:700;line-height:1.3">'
+                f'{inl(h["title"])}</p><p style="margin:0 0 8px;font-size:12px;color:#6e6e73">{inl(h["meta"])}</p>'
+                f'<p style="margin:0;font-size:14px;line-height:1.5">{inl(" ".join(h["text"]))}</p></div>')
+
+    def lst(rows):
+        if not rows:
+            return '<div style="padding:10px 14px"><p style="margin:0;color:#6e6e73">None this time.</p></div>'
+        out = []
+        for x in rows:
+            t, d = _split_line(x)
+            out.append(f'<p style="margin:0 0 10px;font-size:14px;line-height:1.4">{inl(t)}'
+                       + (f'<br><span style="font-size:12px;color:#6e6e73">{inl(d)}</span>' if d else "") + "</p>")
+        return '<div style="padding:10px 14px">' + "".join(out) + "</div>"
+
+    hl1 = r["highlights"][0] if r["highlights"] else None
+    hl2 = r["highlights"][1] if len(r["highlights"]) > 1 else None
+    box = "border:1px solid #d9d9de;padding:0"
+    rows = [
+        f'<tr><td colspan="3" style="padding:0"><img src="{banner_src}" width="760" alt="CAPA - Connecting the region, '
+        f'shaping a future-ready profession" style="display:block;width:100%;max-width:760px;height:auto;border:0"></td></tr>' if banner_src else "",
+        f'<tr><td colspan="3" style="padding:14px 0 16px"><p style="margin:0;{font};font-size:15px;font-weight:700">{inl(r["date"])}</p>'
+        f'<p style="margin:2px 0 0;{font};font-size:40px;font-weight:800;color:{BRAND};letter-spacing:.5px;line-height:1.1">'
+        f'{esc((r["title"] or "Recap").upper())}</p></td></tr>',
+        f'<tr><td valign="top" style="{box};width:33%">{head("Highlight 1")}{hl(hl1)}</td>'
+        f'<td valign="top" style="{box};width:33%">{head("Highlight 2")}{hl(hl2)}</td>'
+        f'<td rowspan="2" valign="top" style="{box};width:34%">{head(LABELS["other"])}{lst(r["other"])}</td></tr>',
+        f'<tr><td colspan="2" valign="top" style="{box}">{head(LABELS["medium"])}{lst(r["medium"])}</td></tr>',
+        f'<tr><td colspan="3" style="padding:12px 0 0;font-size:12px;color:#6e6e73"><b>No news found:</b> {esc(r["quiet"])}</td></tr>' if r["quiet"] else "",
+        f'<tr><td colspan="3" style="padding:12px 0 0;font-size:12px;color:#6e6e73">{esc(RECAP_FOOTER)}</td></tr>',
+    ]
+    return ('<table role="presentation" width="760" cellpadding="0" cellspacing="0" style="width:760px;max-width:100%;'
+            'border-collapse:collapse;font-family:Calibri,Arial,sans-serif;color:#1d1d1f">' + "".join(rows) + "</table>")
+
+
+def recap_text(r):
+    """Plain-text version for email clients that don't show HTML: titles with their links in brackets."""
+    link = lambda t: re.sub(r"\[([^\]]+)\]\((https?://[^)\s]+)\)", r"\1 (\2)", t or "")
+    out = [r["title"].upper(), re.sub(r"\*", "", r["date"]), ""]
+    for n, h in enumerate(r["highlights"][:2], 1):
+        out += [f"HIGHLIGHT {n}: {link(h['title'])}", h["meta"], " ".join(h["text"]), ""]
+    for key in ("other", "medium"):
+        out += [LABELS[key].upper()] + [f"- {link(x)}" for x in r[key]] + [""]
+    if r["quiet"]:
+        out += [f"No news found: {r['quiet']}", ""]
+    return "\n".join(out) + RECAP_FOOTER
+
+
 def subject(brief):
     def d(iso_):
         from datetime import datetime
         return datetime.fromisoformat(iso_.replace("Z", "+00:00")).strftime("%d %b %Y") if iso_ else ""
+    r = parse_recap(brief.get("content"))
+    if r:
+        return f"CAPA {r['title'] or 'recap'}: {re.sub(r'[*]', '', r['date'])}"
     return f"CAPA weekly intelligence brief: {d(brief.get('period_start'))} – {d(brief.get('period_end'))}"
 
 
 def build_messages(brief, recipients, sender):
     md = for_sending(brief.get("content"))
-    html_body = to_html(md, brief.get("sources"))
-    text_body = md + "\n\n" + FOOTER
+    recap = parse_recap(md)
+    banner = BANNER.read_bytes() if recap and BANNER.exists() else None
+    if recap:
+        html_body = recap_html(recap, f"cid:{BANNER_CID}" if banner else "")
+        text_body = recap_text(recap)
+    else:
+        html_body = to_html(md, brief.get("sources"))
+        text_body = md + "\n\n" + FOOTER
     msgs = []
     for i in range(0, len(recipients), BCC_PER_MESSAGE):
         m = EmailMessage()
@@ -124,6 +256,9 @@ def build_messages(brief, recipients, sender):
         m["Message-ID"] = make_msgid(domain=sender.split("@")[-1])
         m.set_content(text_body)
         m.add_alternative(html_body, subtype="html")
+        if banner:   # the banner travels inside the email, so it shows without loading images from the web
+            m.get_payload()[1].add_related(banner, maintype="image", subtype="jpeg", cid=f"<{BANNER_CID}>",
+                                           filename="capa-recap-banner.jpg")
         msgs.append((m, recipients[i:i + BCC_PER_MESSAGE]))
     return msgs
 
