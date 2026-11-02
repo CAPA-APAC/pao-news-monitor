@@ -82,6 +82,8 @@
     $("#panel-people").hidden = $("#panel-roles").hidden = !isAdmin();
     $("#panel-mailing").hidden = !can("manage_mailing_list");
     $("#panel-members").hidden = !can("manage_members");
+    $("#usage-panel").hidden = !isAdmin();
+    if (isAdmin()) A.loadUsage();
     if (isAdmin()) { showRoles().then(showPeople); }
     if (can("manage_mailing_list")) showMailingList();
     if (can("manage_members")) showMembers();
