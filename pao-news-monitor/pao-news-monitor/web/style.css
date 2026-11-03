@@ -392,6 +392,10 @@ dialog.zoom img { display: block; max-width: 100%; max-height: calc(100vh - 120p
 .panel { background: var(--panel); border: 1px solid var(--line-soft); border-radius: var(--radius); padding: 18px; display: grid; gap: 10px; box-shadow: var(--shadow); }
 .panel h3 { font-size: 17px; margin: 0; }
 .panel p { margin: 0; }
+.patch-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+.patch-list li { display: grid; grid-template-columns: 96px 1fr; gap: 12px; font-size: 14px; }
+.patch-list time { color: var(--muted); font-variant-numeric: tabular-nums; }
+#patch-more { justify-self: start; }
 .person-add { display: flex; gap: 8px; flex-wrap: wrap; }
 .person-add input { flex: 1 1 260px; }
 

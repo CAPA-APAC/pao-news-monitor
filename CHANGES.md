@@ -2,6 +2,10 @@
 
 Plain-language log of what changed and why, for anyone who isn't reading the code. One entry per fix or feature, newest first. See the User Guide for how to use each thing; see `_bmad-output/.../addendum.md` for technical detail.
 
+## 2026-11-03 — Patch notes on the Admin tab
+- The **Admin** tab lists what changed on the tracker: the date and title of each change, newest first (the latest 10, with *Show all*).
+- The list comes from this file. After adding an entry here, run `python tests/make_patch_notes.py` to update it; a test fails if you forget.
+
 ## 2026-11-02 — AI usage on the Admin tab
 - The **Admin** tab has a new **AI usage** panel, for admins only (the database also lets only admins read it): requests, tokens in and out, an estimated price, tokens per day as a bar chart, and tables by job (Ask AI, daily relevance check, brief tagging, highlight explanations) and by model. Pick any From and To dates (UTC, the days AI providers bill by) to match a billing cycle, or use *This month*, *Last month* or *Last 30 days*.
 - Every AI answer is logged as one row: when, which job, which model, how many tokens in and out. **No question, answer or article text is stored.**
