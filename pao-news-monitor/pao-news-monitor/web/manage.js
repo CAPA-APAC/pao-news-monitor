@@ -87,7 +87,27 @@
     if (isAdmin()) { showRoles().then(showPeople); }
     if (can("manage_mailing_list")) showMailingList();
     if (can("manage_members")) showMembers();
+    showPatchNotes();
   }
+  // Patch notes: dates and titles from CHANGES.md (built into patch-notes.json by tests/make_patch_notes.py)
+  let patchNotes = null, patchAll = false;
+  async function showPatchNotes() {
+    const list = $("#patch-list"), more = $("#patch-more");
+    if (!patchNotes) {
+      try { const r = await fetch("patch-notes.json", { cache: "no-cache" }); patchNotes = r.ok ? await r.json() : []; }
+      catch (e) { patchNotes = []; }
+    }
+    if (!patchNotes.length) { list.innerHTML = '<li class="muted small">No patch notes found.</li>'; more.hidden = true; return; }
+    const shown = patchAll ? patchNotes : patchNotes.slice(0, 10);
+    list.innerHTML = shown.map((n) => {
+      const d = new Date(n.date + "T00:00:00Z").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+      return `<li><time datetime="${esc(n.date)}">${esc(d)}</time><span>${esc(n.title)}</span></li>`;
+    }).join("");
+    more.hidden = patchNotes.length <= 10;
+    more.textContent = patchAll ? "Show fewer" : `Show all ${patchNotes.length}`;
+  }
+  $("#patch-more").addEventListener("click", () => { patchAll = !patchAll; showPatchNotes(); });
+
   function closeAdmin() {
     $("#admin-view").hidden = true;
     document.querySelector(".filters").hidden = false;
