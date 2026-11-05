@@ -71,12 +71,36 @@ def week_window(days, now=None):
     return end - timedelta(days=days), end
 
 
-def in_period(item, since_iso):
+def in_period(item, since_iso, until_iso=None):
     """Published in the period - or, when no publish date is known, first found in it.
-    (Stops old news that was only just found - e.g. a June election on a newly scanned page.)"""
-    if item.get("published_at"):
-        return item["published_at"] >= since_iso
-    return (item.get("first_seen_at") or "") >= since_iso
+    (Stops old news that was only just found - e.g. a June election on a newly scanned page.)
+    `until_iso` ends a past period (a brief for 2-5 Oct must not include 6 Oct)."""
+    when_ = item.get("published_at") or item.get("first_seen_at") or ""
+    return when_ >= since_iso and (not until_iso or when_ < until_iso)
+
+
+MAX_RANGE_DAYS = 92
+
+
+def date_window(first, last, today=None):
+    """A brief for the dates `first` to `last` (YYYY-MM-DD, both included, UTC days like the usage panel).
+    Returns (start, end, days). Raises ValueError with a readable reason."""
+    today = today or now_utc().date()
+    try:
+        a = datetime.strptime(first, "%Y-%m-%d").date()
+        b = datetime.strptime(last or first, "%Y-%m-%d").date()
+    except (TypeError, ValueError):
+        raise ValueError("Dates must look like 2026-10-02")
+    if b < a:
+        raise ValueError("The 'to' date is before the 'from' date")
+    b = min(b, today)
+    if a > today:
+        raise ValueError("The 'from' date is in the future")
+    days = (b - a).days + 1
+    if days > MAX_RANGE_DAYS:
+        raise ValueError(f"Pick at most {MAX_RANGE_DAYS} days at a time")
+    start = datetime(a.year, a.month, a.day, tzinfo=timezone.utc)
+    return start, start + timedelta(days=days), days
 
 
 def effective(item):
@@ -98,14 +122,14 @@ def email_key(item):
     return (item.get("source_name") or "", item["published_at"], title)
 
 
-def gather(store, since):
-    since_iso = iso(since)
+def gather(store, since, until=None):
+    since_iso, until_iso = iso(since), (iso(until) if until else None)
     items = store.items_since(since_iso)
     # staff set one copy of an email to Low / No relevance: its other copies are muted too
     muted = {email_key(i) for i in items if i.get("relevance") in ("low", "none")} - {None}
     items = [i for i in items if email_key(i) not in muted or i.get("relevance") in ("high", "medium")]
     # Low and No relevance stay in the tracker only
-    items = [i for i in items if not i.get("is_baseline") and effective(i) not in ("low", "none") and in_period(i, since_iso)
+    items = [i for i in items if not i.get("is_baseline") and effective(i) not in ("low", "none") and in_period(i, since_iso, until_iso)
              and not own_brief(i)]
     # same story found twice (e.g. two Google News searches): keep one, preferring a reviewed one
     items.sort(key=lambda i: (i.get("relevance") in ("high", "medium"), effective(i) in ("high", "medium"), i.get("source") != "google_news"), reverse=True)
@@ -369,12 +393,15 @@ def quiet_paos(paos, items):
     return [p for p in paos.values() if p.get("active", True) and p["id"] != "_unmatched_email" and p["id"] not in have]
 
 
-def build(store, days=7, chain=None, now=None, fetcher=None):
-    start, end = week_window(days, now)
+def build(store, days=7, chain=None, now=None, fetcher=None, window=None):
+    """`window` = (start, end) for a past period picked on the site; otherwise the last `days` days."""
+    start, end = window or week_window(days, now)
+    if window:
+        days = max(1, round((end - start).total_seconds() / 86400))
     chain = chain or Chain()
     fetcher = fetcher or fetch
     paos = {p["id"]: p for p in store.load_pao_rows()}
-    items = gather(store, start)
+    items = gather(store, start, end if window else None)
     notes = []
     to_tag = sorted(items, key=lambda i: (effective(i) not in ("high", "medium"), SOURCE_PRIORITY.get(i.get("source"), 5)))[:MAX_TAGGED]
     if len(items) > len(to_tag):
@@ -416,6 +443,8 @@ def build(store, days=7, chain=None, now=None, fetcher=None):
 def cli(argv=None):
     ap = argparse.ArgumentParser(description="News recap (brief)")
     ap.add_argument("--days", type=int, default=7)
+    ap.add_argument("--from", dest="first", default="", help="first date to cover, YYYY-MM-DD (use with --to)")
+    ap.add_argument("--to", dest="last", default="", help="last date to cover, YYYY-MM-DD (included)")
     ap.add_argument("--dry-run", action="store_true", help="print instead of saving")
     ap.add_argument("-v", "--verbose", action="store_true")
     a = ap.parse_args(argv)
@@ -424,7 +453,15 @@ def cli(argv=None):
     if store.schema_problems() or not getattr(store, "has_briefs", lambda: True)():
         print("::error::Database needs updating: paste supabase/update-4.sql into Supabase > SQL Editor and Run.")
         sys.exit(1)
-    row = build(store, days=a.days)
+    window = None
+    if a.first:
+        try:
+            start, end, _ = date_window(a.first, a.last)
+        except ValueError as e:
+            print(f"::error::{e}")
+            sys.exit(1)
+        window = (start, end)
+    row = build(store, days=a.days, window=window)
     if a.dry_run:
         print(row["content"])
     else:
@@ -432,7 +469,7 @@ def cli(argv=None):
     s = row["stats"]
     msg = (f"Recap saved as draft: {s['items']} items, {s['tagged']} tagged, {s['in_brief']} in the recap, "
            f"model(s): {row['models_used']}")
-    print(f"::notice title=Weekly brief::{msg}")
+    print(f"::notice title=Brief::{msg}")
     for n in s["notes"][:12]:   # shown on the run page, so problems can be diagnosed without the log
         print(f"::warning title=AI fallback::{n[:300]}") if "stopped" in n else print(f"::notice title=AI detail::{n[:300]}")
     path = os.environ.get("GITHUB_STEP_SUMMARY")

@@ -53,7 +53,7 @@
       </a>
       <nav class="nav-links" aria-label="Sections">
         <button id="news-btn" class="nav-tab" type="button" aria-current="page">News</button>
-        <button id="brief-btn" class="nav-tab" type="button">Weekly Brief</button>
+        <button id="brief-btn" class="nav-tab" type="button">Brief</button>
         <button id="ask-nav" class="nav-tab" type="button">Ask AI</button>
         <button id="status-btn" class="nav-tab" type="button">Status</button>
       </nav>
@@ -76,12 +76,31 @@
 
     <section id="brief-view" class="brief-view" hidden>
       <div class="admin-head">
-        <h2>Weekly brief</h2>
+        <h2>Brief</h2>
         <button class="btn" id="brief-back" type="button">← Back to news</button>
       </div>
       <div class="brief-layout">
-        <aside class="panel brief-side"><h3>Briefs</h3><ol id="brief-list" class="brief-list"></ol>
-          <p class="muted small">Written every Monday morning from the past week's High and Medium items (plus any open opportunities to comment). Team members can edit; admins approve.</p></aside>
+        <aside class="panel brief-side">
+          <div id="brief-create" class="brief-create" hidden>
+            <h3>Create a brief</h3>
+            <div class="usage-range">
+              <label>From <input type="date" id="bc-from"></label>
+              <label>To <input type="date" id="bc-to"></label>
+            </div>
+            <div class="run-presets">
+              <button class="btn small" type="button" data-bc-preset="today">Today</button>
+              <button class="btn small" type="button" data-bc-preset="yesterday">Yesterday</button>
+              <button class="btn small" type="button" data-bc-preset="7">Last 7 days</button>
+              <button class="btn small" type="button" data-bc-preset="30">Last 30 days</button>
+              <button class="btn small" type="button" data-bc-preset="month">This month</button>
+              <button class="btn small" type="button" data-bc-preset="lastmonth">Last month</button>
+            </div>
+            <button class="btn primary" id="bc-run" type="button">Create brief</button>
+            <p class="run-status small" id="bc-status" hidden></p>
+            <p class="muted small">Covers the dates you pick, both included (UTC days). It appears below as a draft in about 5 minutes. Items rated Low or No relevance are left out.</p>
+          </div>
+          <h3>Briefs</h3><ol id="brief-list" class="brief-list"></ol>
+          <p class="muted small">A brief is written every morning from the day before's High and Medium items (plus any open opportunities to comment). Team members can edit; admins approve.</p></aside>
         <div class="panel brief-main">
           <div class="brief-tools" id="brief-tools"></div>
           <div id="brief-body"></div>
@@ -204,10 +223,10 @@
       </div>
       <div class="panel" id="panel-mailing">
         <div class="admin-head">
-          <h3>Mailing list (weekly brief)</h3>
+          <h3>Mailing list (brief)</h3>
           <span class="muted small" id="ml-count"></span>
         </div>
-        <p class="muted small">People who get the weekly brief. It's sent from your own Outlook with everyone in BCC (recipients can't see each other). Only admins can see this list.</p>
+        <p class="muted small">People who get the brief. It's sent from your own Outlook with everyone in BCC (recipients can't see each other). Only admins can see this list.</p>
         <form id="ml-add" class="person-add">
           <input name="name" placeholder="Name (optional)" aria-label="Name" style="flex:1 1 160px">
           <input name="email" type="email" required placeholder="email@example.org" aria-label="Email">
@@ -305,6 +324,7 @@
       </details>
       <a id="ocr-link" class="btn ghost edit-only" href="ocr.html" title="Turn screenshots of posts into tracker items">OCR</a>
       <button id="import-btn" class="btn ghost edit-only" type="button" title="Import items from an Excel or CSV file">Import</button>
+      <button id="run-news" class="btn" type="button" hidden title="Check every PAO's website, Google News and the email inbox now (admins)">Update news</button>
       <button id="refresh" class="btn ghost icon-btn" type="button" title="Refresh" aria-label="Refresh">
         <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18"><path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v5h-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
@@ -316,6 +336,8 @@
         <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.5"/><path d="M15.5 15.5 21 21" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
       </label>
     </div>
+
+    <p class="run-status small" id="run-news-status" hidden></p>
 
     <div class="layout">
       <main id="main" class="main"></main>
@@ -403,7 +425,7 @@
 
   <dialog id="send-dialog">
     <div class="add-form">
-      <h2>Send the weekly brief</h2>
+      <h2>Send the brief</h2>
       <p id="send-summary"></p>
       <button class="btn primary" id="send-now" type="button">Send now</button>
       <p class="muted small">Emailed from <b>CAPA News Monitor</b> with everyone in BCC (recipients can't see each other) within about 10 minutes. Replies come to you.</p>
@@ -434,5 +456,6 @@
   <script src="manage.js"></script>
   <script src="brief.js"></script>
   <script src="ask-ai.js"></script>
+  <script src="run.js"></script>
 </body>
 </html>

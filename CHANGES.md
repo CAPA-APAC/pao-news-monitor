@@ -2,6 +2,12 @@
 
 Plain-language log of what changed and why, for anyone who isn't reading the code. One entry per fix or feature, newest first. See the User Guide for how to use each thing; see `_bmad-output/.../addendum.md` for technical detail.
 
+## 2026-11-05 — Update news and Create brief from the site
+- **News tab → Update news** runs the news check now. **Brief tab → Create a brief** makes a brief for the **From / To dates** you pick (both included; quick buttons for Today, Yesterday, Last 7 / 30 days, This / Last month). Admins only. Both show *Running… → Finished* and the Brief list refreshes by itself. Nothing is sent automatically: the new brief is a draft.
+- The tab and headings are now just **Brief** (no more "Weekly").
+- **One-time setup:** it needs a GitHub token kept as a secret in Supabase and the new `run-workflow` function deployed (README: *Run from the site*). The page itself never holds the token.
+- A brief can now cover any past dates (up to 92 days); it stops at the end date instead of running to today. A brief for dates that overlap earlier unedited drafts replaces those drafts.
+
 ## 2026-11-05 — Emails link to the story; one email is one item
 - An email item's title now links to the **link inside the email** (the headline link, e.g. the IFRS page), not to a Gmail search that only the inbox owner can open. Tracking redirects from newsletters are followed to the real page when possible. Emails with no link keep the Gmail link. Older emails are re-linked automatically on the next collection.
 - **One email is now one item.** PAOs that share a website (IASB and ISSB are both ifrs.org) each got their own copy of every IFRS email, so a Low rating or a title edit on one copy didn't reach the other, which still went into the recap with its AI suggestion and the old title. New emails go to the one PAO they talk about most (the first listed if none), and the recap treats existing copies as one: a Low / No relevance rating on any copy keeps all of them out, and the copy you reviewed is the one shown.
