@@ -2,6 +2,10 @@
 
 Plain-language log of what changed and why, for anyone who isn't reading the code. One entry per fix or feature, newest first. See the User Guide for how to use each thing; see `_bmad-output/.../addendum.md` for technical detail.
 
+## 2026-11-05 — Daily brief and a new recap header
+- The brief now runs **every day** at 7:45am Malaysia time and covers the past day. Nothing is sent automatically: each draft still needs an admin to approve it. To make one now, run **Actions → Daily brief**.
+- New header picture (`web/recap-header.jpg`): the skyline, with its empty top trimmed. It has no CAPA logo, so add one if you want it.
+
 ## 2026-11-03 — Patch notes on the Admin tab
 - The **Admin** tab lists what changed on the tracker: the date and title of each change, newest first (the latest 10, with *Show all*).
 - The list comes from this file. After adding an entry here, run `python tests/make_patch_notes.py` to update it; a test fails if you forget.
