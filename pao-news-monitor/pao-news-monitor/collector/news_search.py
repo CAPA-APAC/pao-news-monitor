@@ -10,6 +10,9 @@ NewsAPI: optional backup (set the NEWSAPI_KEY secret). Uses the first
 plain term only, one request per PAO, to stay inside the free 100/day.
 """
 import os
+import random
+import threading
+import time
 from datetime import datetime, timedelta, timezone
 from urllib.parse import quote
 
@@ -18,6 +21,50 @@ import feedparser
 from .common import Item, SourceResult, clean, fetch, iso, log, make_id, now_utc, session
 
 LOOKBACK_DAYS = 30
+
+
+class GoogleGate:
+    """Google News answers a burst of searches from GitHub's servers with error 503 (it looks like a robot).
+    The collector asks for ~60 searches on 8 threads at once, so nearly all of them were refused.
+    This spaces the requests out, backs off together when Google pushes back, retries, and gives up
+    early (so the run isn't held up for an hour) if Google keeps refusing."""
+
+    def __init__(self, gap=1.5, backoff=(20, 45), give_up_after=4, sleep=time.sleep):
+        self.gap, self.backoff, self.give_up_after, self.sleep = gap, backoff, give_up_after, sleep
+        self.lock, self.next, self.failed_in_a_row, self.tripped = threading.Lock(), 0.0, 0, False
+
+    def wait(self):
+        with self.lock:
+            now = time.monotonic()
+            at = max(now, self.next)
+            self.next = at + self.gap + (random.uniform(0, self.gap / 3) if self.gap else 0)
+        if at > now:
+            self.sleep(at - now)
+
+    def push_back(self, seconds):
+        with self.lock:   # everyone waits, not just the thread that was refused
+            self.next = max(self.next, time.monotonic() + seconds)
+
+    def get(self, url):
+        """Returns the response (any status), or None when Google has been refusing for a while."""
+        if self.tripped:
+            return None
+        r = None
+        for attempt in range(len(self.backoff) + 1):
+            self.wait()
+            r = fetch(url)
+            if r.status not in (429, 503):
+                self.failed_in_a_row = 0
+                return r
+            if attempt < len(self.backoff):
+                self.push_back(self.backoff[attempt])
+        self.failed_in_a_row += 1
+        if self.failed_in_a_row >= self.give_up_after:
+            self.tripped = True
+        return r
+
+
+GATE = GoogleGate()
 
 
 def parse_term(term, default_locale):
@@ -77,7 +124,10 @@ def collect_google(pao):
     for raw in terms:
         locale, term = parse_term(raw, pao.news_locale)
         try:
-            r = fetch(google_news_url(term, locale))
+            r = GATE.get(google_news_url(term, locale))
+            if r is None:
+                errors.append(f"{term}: skipped, Google News has been refusing requests")
+                continue
             if r.status >= 400:
                 errors.append(f"{term}: error {r.status}")
                 continue
@@ -91,6 +141,8 @@ def collect_google(pao):
     if errors and len(errors) == len(terms):
         res.ok = False
     res.message = f"{len(terms)} search(es)" + (f"; failed: {'; '.join(errors)}" if errors else "")
+    if GATE.tripped and errors:
+        res.message += " | Google is refusing searches from GitHub right now; run Update news again in an hour"
     return res
 
 

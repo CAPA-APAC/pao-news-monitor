@@ -2,6 +2,11 @@
 
 Plain-language log of what changed and why, for anyone who isn't reading the code. One entry per fix or feature, newest first. See the User Guide for how to use each thing; see `_bmad-output/.../addendum.md` for technical detail.
 
+## 2026-11-05 — Google News searches no longer get refused
+- On the last news update **almost every Google News search failed with error 503** (only 4 PAOs got results). It was not duplicates or bad data: Google refuses a burst of searches from GitHub's servers, and the collector sent about 60 at once.
+- Searches are now **spaced out** (about one every 1.5 seconds, so a full run adds roughly two minutes), **retried** after a pause when Google says 503 or 429, and if Google keeps refusing the rest are skipped so the run doesn't stall. The PAO's Google News health line says so, and pressing **Update news** again an hour later will fill the gaps.
+- Websites and the email inbox are unaffected: they were fine in that run.
+
 ## 2026-11-05 — Update news and Create brief from the site
 - **News tab → Update news** runs the news check now. **Brief tab → Create a brief** makes a brief for the **From / To dates** you pick (both included; quick buttons for Today, Yesterday, Last 7 / 30 days, This / Last month). Admins only. Both show *Running… → Finished* and the Brief list refreshes by itself. Nothing is sent automatically: the new brief is a draft.
 - The tab and headings are now just **Brief** (no more "Weekly").

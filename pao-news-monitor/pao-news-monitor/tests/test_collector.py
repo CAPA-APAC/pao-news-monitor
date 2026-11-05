@@ -351,3 +351,33 @@ def test_relink_old_emails(tmp_path):
     assert email_inbox.relink(store) == 1
     assert store.data["items"]["e1"]["url"] == "https://t.example/story"
     assert store.data["items"]["e2"]["url"].startswith("https://mail.google.com")
+
+
+def test_google_news_retries_when_google_says_503(monkeypatch):
+    seen = []
+    def flaky(url, **kw):
+        seen.append(url)
+        if len(seen) < 3:
+            return type("R", (), {"status": 503, "content": b"", "url": url})()
+        return fake_fetch({"https://news.google.com": GOOGLE_RSS})(url, **kw)
+    monkeypatch.setattr(news_search, "fetch", flaky)
+    res = news_search.collect_google(pao(search_terms='"ICAI" president'))
+    assert len(seen) == 3 and res.ok and res.items          # two refusals, then the third try works
+
+
+def test_google_news_gives_up_early_when_google_keeps_refusing(monkeypatch):
+    seen = []
+    def refuse(url, **kw):
+        seen.append(url)
+        return type("R", (), {"status": 503, "content": b"", "url": url})()
+    monkeypatch.setattr(news_search, "fetch", refuse)
+    results = [news_search.collect_google(pao(id=f"p{i}", search_terms='"X" news')) for i in range(10)]
+    assert all(not r.ok for r in results)
+    assert len(seen) == 4 * 3 and news_search.GATE.tripped   # 4 searches x 3 tries, then it stops asking
+    assert "refusing" in results[-1].message
+    # a healthy search spaces requests apart
+    gate = news_search.GoogleGate(gap=1.5, sleep=lambda s: waits.append(s))
+    waits = []
+    for _ in range(3):
+        gate.wait()
+    assert len(waits) == 2 and all(w >= 1.4 for w in waits)
