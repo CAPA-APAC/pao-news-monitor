@@ -235,6 +235,15 @@ def run(only=None, sources=None, dry_run=False, workers=8):
                 r.pop(k, None)
     inserted = store.insert_items(rows) if rows else set()
 
+    # older emails still link to Gmail: point them at the link inside the email (never fails the run)
+    if "email" in sources and not problems:
+        try:
+            n = email_inbox.relink(store, email_inbox.Resolver(limit=25))
+            if n:
+                log.info("Email links: %d older email(s) now link to the story", n)
+        except Exception as e:   # noqa: BLE001
+            log.warning("Email re-link skipped: %s", e)
+
     if not problems:
         page_rows = []
         for res in results:
