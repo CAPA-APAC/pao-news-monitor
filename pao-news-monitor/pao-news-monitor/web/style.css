@@ -518,3 +518,15 @@ dialog.zoom img { display: block; max-width: 100%; max-height: calc(100vh - 120p
 .usage-price-row { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 8px; }
 .usage-price-row input { width: 90px; margin-left: 6px; }
 .usage-note-warn { color: var(--amber, #b26a00); }
+
+/* run-from-the-site (Update news / Create brief) */
+.run-status { margin: 6px 0; padding: 6px 10px; border-radius: 6px; background: var(--accent-soft); }
+.run-status.ok { background: var(--accent-soft); font-weight: 600; }
+.run-status.bad { background: var(--error-soft); color: var(--error); }
+.run-status a { margin-left: 4px; }
+.brief-create { margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid var(--line, #ddd); }
+.brief-create .btn.primary { margin-top: 10px; }
+.run-presets { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.brief-create .usage-range { flex-direction: column; align-items: stretch; gap: 8px; }
+.brief-create .usage-range label { display: flex; align-items: center; justify-content: space-between; }
+.brief-create .usage-range input { margin-left: 0; width: 170px; }

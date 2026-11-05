@@ -325,3 +325,41 @@ def test_email_twins_appear_once_and_the_reviewed_copy_wins(tmp_path):
     store.data["items"]["t2"] = dict(base, id="t2", pao_id="issb", title="IFRS Foundation news alert")
     got = {i["id"] for i in brief.gather(store, NOW - __import__("datetime").timedelta(days=7))}
     assert "t1" in got and "t2" not in got
+
+
+def test_date_window_for_a_picked_range():
+    today = datetime(2026, 11, 5).date()
+    start, end, days = brief.date_window("2026-10-02", "2026-10-05", today)
+    assert (start.isoformat(), end.isoformat(), days) == ("2026-10-02T00:00:00+00:00", "2026-10-06T00:00:00+00:00", 4)
+    assert brief.date_window("2026-10-02", None, today)[2] == 1                       # one date = that day
+    assert brief.date_window("2026-11-01", "2026-12-31", today)[2] == 5               # future end is cut to today
+    for bad in (("2026-10-05", "2026-10-02"), ("2026-11-09", "2026-11-10"), ("2026-01-01", "2026-11-05"), ("nope", "2026-11-05")):
+        with pytest.raises(ValueError):
+            brief.date_window(*bad, today)
+
+
+def test_a_past_period_stops_at_its_end_date(tmp_path):
+    store = make_store(tmp_path)
+    td = __import__("datetime").timedelta
+    store.data["items"]["inside"] = dict(store.data["items"]["a"], id="inside", title="Inside the range story alpha",
+                                         published_at="2026-10-04T10:00:00+00:00")
+    store.data["items"]["after"] = dict(store.data["items"]["a"], id="after", title="After the range story bravo",
+                                        published_at="2026-10-06T10:00:00+00:00")
+    start, end, _ = brief.date_window("2026-10-02", "2026-10-05", NOW.date())
+    got = {i["id"] for i in brief.gather(store, start, end)}
+    assert "inside" in got and "after" not in got
+    assert "after" in {i["id"] for i in brief.gather(store, start)}                    # no end date: runs to now, as before
+
+
+def test_build_for_a_picked_range_titles_and_dates_it(tmp_path):
+    store = make_store(tmp_path)
+    start, end, _ = brief.date_window("2026-10-02", "2026-10-05", NOW.date())
+
+    class NoAI:
+        used, log = [], []
+        def ask(self, *a, **k):
+            raise ai.AIUnavailable("none")
+
+    row = brief.build(store, chain=NoAI(), fetcher=lambda *a, **k: None, window=(start, end))
+    assert row["content"].startswith("# 4-day recap\n**2 Oct – 5 Oct 2026**")
+    assert row["period_start"].startswith("2026-10-02") and row["period_end"].startswith("2026-10-06")

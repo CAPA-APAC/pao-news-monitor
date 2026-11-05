@@ -1,4 +1,4 @@
-/* Weekly brief page: list of briefs, read, edit (team), approve (admin), copy for Outlook, download Word. */
+/* Brief page: list of briefs, read, edit (team), approve (admin), copy for Outlook, download Word. */
 (() => {
   "use strict";
   const A = window.PAOApp;
@@ -133,6 +133,12 @@
     briefs = data;
   }
 
+  // an admin just created one from the page: show the new draft
+  document.addEventListener("pao:brief-ready", () => {
+    if ($("#brief-view").hidden) return;
+    load().then(() => { current = briefs[0] || null; editing = false; draw(); }).catch(() => {});
+  });
+
   // ---------- view ----------
   function open() {
     for (const sel of [".filters", ".layout", "#admin-view", "#status-view", "#ask-view"]) document.querySelector(sel).hidden = true;
@@ -156,11 +162,11 @@
     $("#brief-list").innerHTML = briefs.length ? briefs.map((b) => `<li><button type="button" data-brief="${b.id}" class="${current && b.id === current.id ? "active" : ""}">
         <span>${fmt(b.period_start)} – ${fmt(b.period_end)}</span>
         <span class="brief-status ${b.status}">${b.status === "approved" ? "Approved" : "Draft"}</span></button></li>`).join("")
-      : `<li class="muted small">No briefs yet. The first one is written on Monday morning, or run it now: GitHub → Actions → Weekly brief → Run workflow.</li>`;
+      : `<li class="muted small">No briefs yet. One is written every morning, or admins can create one now with Create a brief above.</li>`;
     const t = $("#brief-tools"), body = $("#brief-body");
     if (!current) { t.innerHTML = ""; body.innerHTML = ""; return; }
     const meta = `<p class="muted small">Written ${new Date(current.created_at).toLocaleString()} by ${esc(current.models_used || "?")}
-      · ${current.stats?.items ?? "?"} items this week${current.edited_by ? ` · edited by ${esc(current.edited_by)} ${fmt(current.edited_at)}` : ""}
+      · ${current.stats?.items ?? "?"} items in this period${current.edited_by ? ` · edited by ${esc(current.edited_by)} ${fmt(current.edited_at)}` : ""}
       ${current.status === "approved" ? ` · <b>approved</b> by ${esc(current.approved_by || "")} ${fmt(current.approved_at)}` : ""}
       ${current.sent_at ? ` · <b>sent</b> to ${current.sent_to ?? "?"} people by ${esc(current.sent_by || "")} ${fmt(current.sent_at)}` : ""}</p>
       ${current.send_requested_at && !current.sent_at ? `<p class="send-state">Sending: queued by ${esc(current.send_requested_by || "")} at ${new Date(current.send_requested_at).toLocaleTimeString()}. It goes out within about 10 minutes - refresh to check.</p>` : ""}

@@ -526,7 +526,7 @@
             <button class="btn ghost small" type="button" data-title-cancel>Cancel</button></div>`
         : `<h4${showingEnglish.has(it.id) ? ` title="Original: ${esc(it.title)}"` : ""}>${it.url ? `<a href="${esc(it.url)}" target="_blank" rel="noopener">${esc(shownTitle(it))}</a>` : esc(shownTitle(it))}</h4>`}
       ${it.original_title && it.original_title !== it.title ? `<p class="muted small" title="The title as it was first collected">Title corrected · was: ${esc(it.original_title)}</p>` : ""}
-      ${it.ai_summary && nonEnglish(it) && !showingEnglish.has(it.id) ? `<p class="muted small ai-sum" title="One-line summary written by AI for the weekly brief">In English: ${esc(it.ai_summary)}</p>` : ""}
+      ${it.ai_summary && nonEnglish(it) && !showingEnglish.has(it.id) ? `<p class="muted small ai-sum" title="One-line summary written by AI for the brief">In English: ${esc(it.ai_summary)}</p>` : ""}
       ${realSnippet(it) ? `<p class="snippet">${esc(it.snippet)}</p>` : ""}
       ${it.source === "page_watch" && it.snippet ? `<p class="snippet diff">${esc(it.snippet)}</p><p class="muted small">Check the page before updating your records - a layout change can look like a new name.</p>` : ""}
       ${it.snippet && it.snippet.startsWith("Search: ") ? `<p class="muted small">Found by ${esc(it.snippet.toLowerCase())}</p>` : ""}
