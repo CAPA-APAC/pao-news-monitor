@@ -304,3 +304,50 @@ def test_own_brief_emails_are_skipped():
     # a real email that mentions CAPA is still collected
     real = make_email("press@accaglobal.com", "ACCA and CAPA sign a partnership", body)
     assert [i.pao_id for i in email_inbox.parse_message(real, paos, own_address="capanewsapi@gmail.com")] == ["acca"]
+
+
+def make_html_email(sender, subject, html, text=""):
+    m = EmailMessage()
+    m["From"], m["Subject"], m["Message-ID"] = sender, subject, "<n1@mail.example>"
+    m["Date"] = "Wed, 04 Nov 2026 09:00:00 +0000"
+    m.set_content(text or "plain version")
+    m.add_alternative(html, subtype="html")
+    return m.as_bytes()
+
+
+def test_email_links_to_the_story_not_to_gmail():
+    html = ('<a href="https://t.example/view">View in browser</a><img src="x"><a href="https://t.example/logo"><img src="logo.png"></a>'
+            '<h2><a href="https://t.example/Ctc/abc">October 2026 IASB Update and podcast</a></h2>'
+            '<a href="https://t.example/unsub">Unsubscribe</a>')
+    got = email_inbox.parse_message(make_html_email("IFRS <no-reply@news.ifrs.org>", "IFRS Foundation news alert", html), [pao()])
+    assert got[0].url == "https://t.example/Ctc/abc"
+    # plain-text emails show links as 'words (https://...)'
+    txt = ("Manage your preferences (https://t.example/prefs)\n04 November 2026 October 2026 IASB Update and podcast "
+           "(https://t.example/Ctc/xyz)\nUnsubscribe (https://t.example/u)")
+    assert email_inbox.link_from_text(txt) == "https://t.example/Ctc/xyz"
+    # no link at all: falls back to the Gmail search
+    assert "mail.google.com" in email_inbox.parse_message(make_email("x@gmail.com", "Hello", "no links here"), [pao()])[0].url
+    # a tracking link is followed to the real page when a resolver is given
+    got = email_inbox.parse_message(make_html_email("a@b.org", "s", html), [pao()], resolve=lambda u: "https://www.ifrs.org/news/x")
+    assert got[0].url == "https://www.ifrs.org/news/x"
+
+
+def test_one_email_is_one_item_when_paos_share_a_website():
+    iasb = pao(id="iasb", name="International Accounting Standards Board (IFRS Foundation)", abbr="IASB", website="https://www.ifrs.org/")
+    issb = pao(id="issb", name="International Sustainability Standards Board (IFRS Foundation)", abbr="ISSB", website="https://www.ifrs.org/")
+    for subject, body, want in (("IFRS Foundation news alert", "October 2026 IASB Update and podcast", "iasb"),
+                                ("IFRS Foundation news alert", "October 2026 ISSB Update and podcast", "issb"),
+                                ("IFRS Foundation news alert", "nothing specific", "iasb")):
+        got = email_inbox.parse_message(make_email("IFRS <no-reply@news.ifrs.org>", subject, body), [iasb, issb])
+        assert [i.pao_id for i in got] == [want]
+
+
+def test_relink_old_emails(tmp_path):
+    from collector.store import JsonStore
+    store = JsonStore(tmp_path / "s.json")
+    store.data["items"]["e1"] = {"id": "e1", "source": "email", "url": "https://mail.google.com/mail/#search/x",
+                                 "content": "Headline words (https://t.example/story) Unsubscribe (https://t.example/u)"}
+    store.data["items"]["e2"] = {"id": "e2", "source": "email", "url": "https://mail.google.com/mail/#search/y", "content": "no links"}
+    assert email_inbox.relink(store) == 1
+    assert store.data["items"]["e1"]["url"] == "https://t.example/story"
+    assert store.data["items"]["e2"]["url"].startswith("https://mail.google.com")

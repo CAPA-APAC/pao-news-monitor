@@ -25,7 +25,7 @@ from urllib.parse import quote
 
 from bs4 import BeautifulSoup
 
-from .common import Item, SourceResult, base_domain, clean, iso, log, make_id, now_utc
+from .common import Item, SourceResult, base_domain, clean, iso, log, make_id, now_utc, session
 
 SOURCE = "email"
 UNMATCHED_ID = "_unmatched_email"
@@ -71,12 +71,24 @@ def body_text(msg):
     return ""
 
 
+def _mentions(p, hay):
+    n = hay.lower().count(p.name.lower()) if p.name and len(p.name) > 8 else 0
+    if p.abbr and len(p.abbr) >= 3:
+        n += len(re.findall(rf"(?<![A-Za-z]){re.escape(p.abbr)}(?![A-Za-z])", hay))
+    return n
+
+
 def match_paos(sender, subject, body, paos):
     domain = base_domain(sender.split("@")[-1]) if "@" in sender else ""
     by_domain = [p for p in paos if p.website and domain and base_domain(p.website) == domain]
-    if by_domain:
-        return by_domain
     hay = f"{subject}\n{body[:20000]}"
+    if by_domain:
+        # Several PAOs can share one website (IASB and ISSB are both ifrs.org). One email must stay ONE item,
+        # otherwise each copy is rated, edited and briefed separately: pick the one the email talks about most
+        # (the first listed if it names none).
+        if len(by_domain) > 1:
+            by_domain = [max(by_domain, key=lambda p: _mentions(p, hay))]
+        return by_domain
     hits = []
     for p in paos:
         if p.name and len(p.name) > 8 and p.name.lower() in hay.lower():
@@ -86,7 +98,77 @@ def match_paos(sender, subject, body, paos):
     return hits
 
 
-def parse_message(raw, paos, own_address=""):
+# Things in an email that are never "the story": unsubscribe / preferences / social / "view in browser" links
+NOT_THE_STORY = re.compile(r"unsubscri|opt[-_ ]?out|preferences|manage (your )?(subscription|email|profile)|privacy|"
+                           r"view (this )?(email )?(in|online)|in your browser|forward|contact us|facebook|twitter|"
+                           r"linkedin|instagram|youtube|whatsapp|mailto:|\.(png|jpe?g|gif|svg)(\?|$)", re.I)
+URL_RE = re.compile(r"https?://[^\s<>\"'\])]+")
+
+
+def link_from_html(html):
+    """The first real link in the email's HTML: has readable text and isn't a footer / social link."""
+    for a in BeautifulSoup(html, "lxml").find_all("a", href=True):
+        href, text = a["href"].strip(), clean(a.get_text())
+        if href.startswith(("http://", "https://")) and len(text) >= 3 and not NOT_THE_STORY.search(href + " " + text):
+            return href
+    return ""
+
+
+def link_from_text(text):
+    """Same for a plain-text email, where links appear as 'Some words (https://...)'."""
+    for m in URL_RE.finditer(text or ""):
+        before = (text or "")[max(0, m.start() - 80):m.start()]
+        url = m.group(0).rstrip(".,;:")
+        if not NOT_THE_STORY.search(url + " " + before):
+            return url
+    return ""
+
+
+def main_link(msg):
+    """The link a reader would click: HTML anchors first, then the plain text."""
+    html = []
+    for part in (msg.walk() if msg.is_multipart() else [msg]):
+        if part.get_content_type() == "text/html" and not part.get("Content-Disposition", "").startswith("attachment"):
+            payload = part.get_payload(decode=True) or b""
+            html.append(payload.decode(part.get_content_charset() or "utf-8", errors="replace"))
+    return (link_from_html("\n".join(html)) if html else "") or link_from_text(body_text(msg))
+
+
+class Resolver:
+    """Newsletter links are tracking redirects (hubspotlinks.com, list-manage.com ...). Follow one to the page it
+    leads to, so the item links straight to the real article. Falls back to the tracking link when that fails."""
+
+    def __init__(self, limit=40):
+        self.left, self.cache = limit, {}
+
+    def __call__(self, url):
+        if url in self.cache or self.left <= 0:
+            return self.cache.get(url, url)
+        self.left -= 1
+        final = url
+        try:
+            r = session().get(url, timeout=8, stream=True, allow_redirects=True)
+            if r.status_code < 400 and r.url and not NOT_THE_STORY.search(r.url):
+                final = r.url
+            r.close()
+        except Exception as e:  # noqa: BLE001
+            log.info("could not follow %s: %s", url[:80], e)
+        self.cache[url] = final
+        return final
+
+
+def relink(store, resolve=None, limit=200):
+    """Emails collected before links were read still point at Gmail: take the link from the saved text."""
+    fixed = 0
+    for row in store.email_items_to_relink(limit):
+        link = link_from_text(row.get("content") or "")
+        if link:
+            store.set_item_url(row["id"], resolve(link) if resolve else link)
+            fixed += 1
+    return fixed
+
+
+def parse_message(raw, paos, own_address="", resolve=None):
     msg = email.message_from_bytes(raw)
     subject = clean(_decode(msg.get("Subject"))) or "(no subject)"
     from_name, sender = parseaddr(_decode(msg.get("From")))
@@ -99,7 +181,12 @@ def parse_message(raw, paos, own_address=""):
         date = None
     text = clean(body_text(msg))
     targets = match_paos(sender, subject, text, paos) or [None]
-    link = f"https://mail.google.com/mail/#search/rfc822msgid%3A{quote(msgid.strip('<>'))}" if msgid else ""
+    # the link to the story itself; only if the email has none, a Gmail search (works for the inbox owner only)
+    link = main_link(msg)
+    if link and resolve:
+        link = resolve(link)
+    if not link and msgid:
+        link = f"https://mail.google.com/mail/#search/rfc822msgid%3A{quote(msgid.strip('<>'))}"
     items = []
     for p in targets:
         pid = p.id if p else UNMATCHED_ID
@@ -121,7 +208,7 @@ def collect(paos, since=None):
         return overall, []
     since = since or (now_utc() - timedelta(days=FIRST_RUN_DAYS))
     since = since - timedelta(days=2)  # small overlap; duplicates are ignored
-    items, skipped = [], 0
+    items, skipped, resolver = [], 0, Resolver()
     try:
         imap = imaplib.IMAP4_SSL("imap.gmail.com", 993)
         imap.login(address, password)
@@ -133,7 +220,7 @@ def collect(paos, since=None):
             if status != "OK" or not parts or not isinstance(parts[0], tuple):
                 continue
             try:
-                got = parse_message(parts[0][1], paos, own_address=address)
+                got = parse_message(parts[0][1], paos, own_address=address, resolve=resolver)
                 skipped += not got
                 items += got
             except Exception as e:  # noqa: BLE001

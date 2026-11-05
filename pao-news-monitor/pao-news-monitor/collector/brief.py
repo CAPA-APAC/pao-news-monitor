@@ -90,9 +90,20 @@ def own_brief(item):
     return item.get("source") == "email" and bool(OWN_SUBJECT.match(item.get("title") or ""))
 
 
+def email_key(item):
+    """One email can sit under several PAOs (copies with different ids). This identifies the message itself."""
+    if item.get("source") != "email" or not item.get("published_at"):
+        return None
+    title = re.sub(r"\W+", " ", (item.get("original_title") or item.get("title") or "").lower()).strip()
+    return (item.get("source_name") or "", item["published_at"], title)
+
+
 def gather(store, since):
     since_iso = iso(since)
     items = store.items_since(since_iso)
+    # staff set one copy of an email to Low / No relevance: its other copies are muted too
+    muted = {email_key(i) for i in items if i.get("relevance") in ("low", "none")} - {None}
+    items = [i for i in items if email_key(i) not in muted or i.get("relevance") in ("high", "medium")]
     # Low and No relevance stay in the tracker only
     items = [i for i in items if not i.get("is_baseline") and effective(i) not in ("low", "none") and in_period(i, since_iso)
              and not own_brief(i)]
@@ -101,9 +112,11 @@ def gather(store, since):
     seen, unique = set(), []
     for it in items:
         key = (it["pao_id"], re.sub(r"\W+", " ", (it.get("title") or "").lower()).strip())
-        if key in seen:
+        if key in seen or (email_key(it) and ("email", email_key(it)) in seen):
             continue
         seen.add(key)
+        if email_key(it):
+            seen.add(("email", email_key(it)))
         unique.append(it)
     unique.sort(key=lambda i: (i.get("published_at") or i.get("first_seen_at") or ""), reverse=True)
     return unique

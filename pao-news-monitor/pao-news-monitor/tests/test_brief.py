@@ -302,3 +302,26 @@ def test_teaser_text_cut_from_titles():
     long = "A very long headline " * 10
     assert len(brief.tidy_title(long)) <= 121 and brief.tidy_title(long).endswith("…")
     assert brief.tidy_title("ICAI elects new President") == "ICAI elects new President"
+
+
+def test_rating_one_copy_of_an_email_low_mutes_its_twins(tmp_path):
+    """IASB and ISSB share ifrs.org, so one email used to be stored twice: rate one Low, the other still got in."""
+    store = make_store(tmp_path)
+    base = dict(store.data["items"]["a"], source="email", source_name="IFRS Foundation <no-reply@news.ifrs.org>",
+                published_at="2026-10-20T00:00:00+00:00", relevance=None, ai_relevance="high", is_baseline=False)
+    store.data["items"]["t1"] = dict(base, id="t1", pao_id="iasb", title="IASB Podcast, IFRIC Updates, Agendas",
+                                     original_title="IFRS Foundation news alert", relevance="low")   # staff: Low + edited title
+    store.data["items"]["t2"] = dict(base, id="t2", pao_id="issb", title="IFRS Foundation news alert")  # untouched twin
+    got = {i["id"] for i in brief.gather(store, NOW - __import__("datetime").timedelta(days=7))}
+    assert "t1" not in got and "t2" not in got
+
+
+def test_email_twins_appear_once_and_the_reviewed_copy_wins(tmp_path):
+    store = make_store(tmp_path)
+    base = dict(store.data["items"]["a"], source="email", source_name="IFRS Foundation <no-reply@news.ifrs.org>",
+                published_at="2026-10-20T00:00:00+00:00", relevance=None, ai_relevance="high", is_baseline=False)
+    store.data["items"]["t1"] = dict(base, id="t1", pao_id="iasb", title="IASB Podcast, IFRIC Updates, Agendas",
+                                     original_title="IFRS Foundation news alert", relevance="high")
+    store.data["items"]["t2"] = dict(base, id="t2", pao_id="issb", title="IFRS Foundation news alert")
+    got = {i["id"] for i in brief.gather(store, NOW - __import__("datetime").timedelta(days=7))}
+    assert "t1" in got and "t2" not in got

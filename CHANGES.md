@@ -2,6 +2,10 @@
 
 Plain-language log of what changed and why, for anyone who isn't reading the code. One entry per fix or feature, newest first. See the User Guide for how to use each thing; see `_bmad-output/.../addendum.md` for technical detail.
 
+## 2026-11-05 — Emails link to the story; one email is one item
+- An email item's title now links to the **link inside the email** (the headline link, e.g. the IFRS page), not to a Gmail search that only the inbox owner can open. Tracking redirects from newsletters are followed to the real page when possible. Emails with no link keep the Gmail link. Older emails are re-linked automatically on the next collection.
+- **One email is now one item.** PAOs that share a website (IASB and ISSB are both ifrs.org) each got their own copy of every IFRS email, so a Low rating or a title edit on one copy didn't reach the other, which still went into the recap with its AI suggestion and the old title. New emails go to the one PAO they talk about most (the first listed if none), and the recap treats existing copies as one: a Low / No relevance rating on any copy keeps all of them out, and the copy you reviewed is the one shown.
+
 ## 2026-11-05 — Daily brief and a new recap header
 - The brief now runs **every day** at 7:45am Malaysia time and covers the past day. Nothing is sent automatically: each draft still needs an admin to approve it. To make one now, run **Actions → Daily brief**.
 - New header picture (`web/recap-header.jpg`): the skyline, with its empty top trimmed. It has no CAPA logo, so add one if you want it.
