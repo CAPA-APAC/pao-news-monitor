@@ -2,6 +2,11 @@
 
 Plain-language log of what changed and why, for anyone who isn't reading the code. One entry per fix or feature, newest first. See the User Guide for how to use each thing; see `_bmad-output/.../addendum.md` for technical detail.
 
+## 2026-11-06 — Edit the brief as story cards
+- **Edit on the Brief tab now shows each story as a card** (title, details, link and, for highlights, a summary) instead of a wall of text with long links. Use ▲▼ to reorder, **Move to…** to change a story's section (Highlights, Other key news, Also worth knowing), **Delete** (with **Undo**), and **+ Add a story** to search the tracker's news and drop one in with its link filled in. Highlights hold two stories; if full, move one out first.
+- Nothing about sending changed: it saves the same text as before, so the page, **Copy for email**, **Download Word** and the mailing-list email look the same. **Edit as text** is still there for anything unusual, and older-style briefs open as text.
+- You can retitle the brief and change its dates line at the top of the editor.
+
 ## 2026-11-06 — Daily brief moves to 12 noon
 - The daily brief now runs at **12:03 Malaysia time** (was 07:47), so the morning is left to review the day's news before the brief is drafted. Anything you rate Low or No relevance (or retitle) before then is respected. GitHub can start scheduled jobs up to half an hour late, so expect it between 12:00 and 12:30. The brief still only makes a draft; nothing is emailed until it is approved.
 
