@@ -2,6 +2,9 @@
 
 Plain-language log of what changed and why, for anyone who isn't reading the code. One entry per fix or feature, newest first. See the User Guide for how to use each thing; see `_bmad-output/.../addendum.md` for technical detail.
 
+## 2026-11-06 — Daily brief moves to 12 noon
+- The daily brief now runs at **12:03 Malaysia time** (was 07:47), so the morning is left to review the day's news before the brief is drafted. Anything you rate Low or No relevance (or retitle) before then is respected. GitHub can start scheduled jobs up to half an hour late, so expect it between 12:00 and 12:30. The brief still only makes a draft; nothing is emailed until it is approved.
+
 ## 2026-11-05 — Google News searches no longer get refused
 - On the last news update **almost every Google News search failed with error 503** (only 4 PAOs got results). It was not duplicates or bad data: Google refuses a burst of searches from GitHub's servers, and the collector sent about 60 at once.
 - Searches are now **spaced out** (about one every 1.5 seconds, so a full run adds roughly two minutes), **retried** after a pause when Google says 503 or 429, and if Google keeps refusing the rest are skipped so the run doesn't stall. The PAO's Google News health line says so, and pressing **Update news** again an hour later will fill the gaps.

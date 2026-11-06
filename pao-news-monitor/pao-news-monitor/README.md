@@ -31,7 +31,7 @@ People sign in with their email and a password. Email is only used to confirm a 
 **Forgot password / used to sign in with email links:** the **Forgot password** tab emails a link to set one. Signed-in people can change it with the **Password** button.
 
 ## Daily brief (AI)
-Every day at about **7:45am** (Malaysia time) a separate job reads the past day's items (everything except items tagged **Low** or **No relevance**, and hidden first-scan links), and:
+Every day at about **12:00 noon** (Malaysia time; GitHub can start it up to half an hour late) a separate job reads the past day's items - the morning is left for the team to review the day's news first, and anything rated Low or No relevance by hand is left out (everything except items tagged **Low** or **No relevance**, and hidden first-scan links), and:
 1. tags each item with themes (AI & digitalisation, Talent, Sustainability, Ethics & standards) and a one-line English summary. These also appear on the news cards.
 2. lays out a draft **recap** in CAPA's newsletter layout: **Highlight 1** and **Highlight 2** (the two most important stories, each with 2-3 sentences the AI writes from the article), **Other key news** (the other High stories; opportunities to comment and leadership changes count as High) and **Also worth knowing** (Medium stories). Every title links straight to its page - no numbered footnotes. The same story from two sources appears once. Earlier briefs that come back through the inbox are ignored.
 
