@@ -6,6 +6,7 @@
   const $ = (s, el = document) => el.querySelector(s);
   const esc = A.esc;
   let briefs = [], current = null, editing = false;
+  let editor = null, draftMd = null, textMode = false;   // Edit screen: story cards (default) or plain text
 
   const canEdit = () => A.can("edit_briefs");
   const canApprove = () => A.can("approve_briefs");
@@ -171,12 +172,25 @@
       ${current.sent_at ? ` · <b>sent</b> to ${current.sent_to ?? "?"} people by ${esc(current.sent_by || "")} ${fmt(current.sent_at)}` : ""}</p>
       ${current.send_requested_at && !current.sent_at ? `<p class="send-state">Sending: queued by ${esc(current.send_requested_by || "")} at ${new Date(current.send_requested_at).toLocaleTimeString()}. It goes out within about 10 minutes - refresh to check.</p>` : ""}
       ${current.send_error ? `<p class="send-state bad">Sending failed: ${esc(current.send_error)}. Fix it and press Send to mailing list again.</p>` : ""}`;
+    if (!editing) { editor = null; draftMd = null; textMode = false; }
     if (editing) {
-      t.innerHTML = `<button class="btn primary" id="brief-save" type="button">Save</button><button class="btn ghost" id="brief-cancel" type="button">Cancel</button>`;
-      body.innerHTML = meta + `<p class="muted small">${parseRecap(current.content)
+      const md = draftMd ?? current.content ?? "";
+      const asCards = !textMode && window.BriefEditor && parseRecap(md);
+      t.innerHTML = `<button class="btn primary" id="brief-save" type="button">Save</button><button class="btn ghost" id="brief-cancel" type="button">Cancel</button>`
+        + (parseRecap(md) ? `<button class="btn ghost" id="brief-textmode" type="button">${asCards ? "Edit as text" : "Back to story cards"}</button>` : "");
+      if (asCards) {
+        body.innerHTML = meta + `<p class="muted small">Edit each story in its card. Use the arrows to reorder, <b>Move to…</b> to change section, and <b>+ Add a story</b> to pull one in from the tracker. Nothing is saved until you press <b>Save</b>.</p><div id="brief-blocks"></div>`;
+        editor = window.BriefEditor.mount($("#brief-blocks"), md, {
+          esc, toast: A.toast, items: () => A.state.items,
+          abbr: (id) => { const p = A.state.paos.find((x) => x.id === id); return p ? (p.abbr || p.name) : ""; },
+        });
+        return;
+      }
+      editor = null;
+      body.innerHTML = meta + `<p class="muted small">${parseRecap(md)
           ? "Plain text. Keep the section headings (<code>## Highlights</code>, <code>## Other high</code>, <code>## Medium</code>). Each highlight is <code>### [title](link)</code>, then a details line, then the summary. Other stories are <code>- [title](link) · details</code>. The first line (<code># ...</code>) is the title."
           : "Plain text with simple formatting: <code>## Heading</code>, <code>- bullet</code>, <code>**bold**</code>. Keep the [n] numbers - they link to the sources."}</p>
-        <textarea id="brief-text" spellcheck="true">${esc(current.content || "")}</textarea>`;
+        <textarea id="brief-text" spellcheck="true">${esc(md)}</textarea>`;
       return;
     }
     t.innerHTML = [
@@ -196,8 +210,9 @@
   }
 
   // ---------- actions ----------
+  const isDirty = () => !editing ? false : editor ? editor.dirty() : ($("#brief-text") ? $("#brief-text").value !== (current.content || "") : false);
   async function save() {
-    const content = $("#brief-text").value;
+    const content = editor ? editor.markdown() : $("#brief-text").value;
     const patch = { content, edited_by: A.state.user?.email || null, edited_at: new Date().toISOString() };
     try {
       if (!A.DEMO) { const { error } = await A.db.from("briefs").update(patch).eq("id", current.id); if (error) throw error; }
@@ -316,12 +331,17 @@
   $("#brief-view").addEventListener("click", (e) => {
     const b = e.target.closest("[data-brief]");
     if (b) {
-      if (editing && !confirm("Discard your unsaved changes?")) return;
+      if (editing && isDirty() && !confirm("Discard your unsaved changes?")) return;
       current = briefs.find((x) => String(x.id) === b.dataset.brief); editing = false; return draw();
     }
     const id = e.target.id;
-    if (id === "brief-edit") { editing = true; draw(); $("#brief-text").focus(); }
-    else if (id === "brief-cancel") { editing = false; draw(); }
+    if (id === "brief-edit") { editing = true; draw(); $("#brief-text")?.focus(); }
+    else if (id === "brief-cancel") { if (isDirty() && !confirm("Discard your unsaved changes?")) return; editing = false; draw(); }
+    else if (id === "brief-textmode") {
+      const md = editor ? editor.markdown() : $("#brief-text").value;
+      if (textMode && !parseRecap(md)) return A.toast("That text no longer has the ## Highlights heading, so it can't be shown as cards", true);
+      draftMd = md; textMode = !textMode; draw();
+    }
     else if (id === "brief-save") save();
     else if (id === "brief-approve") approve();
     else if (id === "brief-copy") copy();
