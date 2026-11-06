@@ -6,7 +6,7 @@ Detail that supports the PRD but belongs to architecture, not requirements.
 - **Code:** GitHub repository (public during testing). App code in `pao-news-monitor/pao-news-monitor/`; scheduled jobs in `.github/workflows/`.
 - **Web page:** static site in `web/` served by a Cloudflare Worker; redeploys automatically on every push.
 - **Database + sign-in:** Supabase (Postgres with row-level security). Schema changes = `supabase/update-N.sql`, run by hand in the SQL editor.
-- **Jobs:** GitHub Actions - `collect.yml` daily 05:37 MYT, `brief.yml` Monday 07:47 MYT, `send.yml` every 10 minutes (GitHub often delays this up to ~1 hour).
+- **Jobs:** GitHub Actions - `collect.yml` daily 05:37 MYT, `brief.yml` daily 12:03 MYT, `send.yml` every 10 minutes (GitHub often delays this up to ~1 hour).
 - **AI chain:** Gemini, then Groq, Cloudflare Workers AI, OpenRouter (free models), via OpenAI-compatible APIs; plain-list fallback. GitHub Models was retired in July 2026.
 - **Email:** sent through a Gmail app password (test account); Supabase auth emails through the same SMTP.
 - **OCR:** Tesseract.js in the browser; Excel/CSV via SheetJS.

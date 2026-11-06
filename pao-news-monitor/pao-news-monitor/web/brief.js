@@ -162,7 +162,7 @@
     $("#brief-list").innerHTML = briefs.length ? briefs.map((b) => `<li><button type="button" data-brief="${b.id}" class="${current && b.id === current.id ? "active" : ""}">
         <span>${fmt(b.period_start)} – ${fmt(b.period_end)}</span>
         <span class="brief-status ${b.status}">${b.status === "approved" ? "Approved" : "Draft"}</span></button></li>`).join("")
-      : `<li class="muted small">No briefs yet. One is written every morning, or admins can create one now with Create a brief above.</li>`;
+      : `<li class="muted small">No briefs yet. One is written every day at noon, or admins can create one now with Create a brief above.</li>`;
     const t = $("#brief-tools"), body = $("#brief-body");
     if (!current) { t.innerHTML = ""; body.innerHTML = ""; return; }
     const meta = `<p class="muted small">Written ${new Date(current.created_at).toLocaleString()} by ${esc(current.models_used || "?")}
