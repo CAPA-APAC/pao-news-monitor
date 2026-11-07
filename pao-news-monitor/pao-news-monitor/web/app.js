@@ -1070,6 +1070,18 @@
   // shared with manage.js (Members, People, Import)
   window.PAOApp = { api, state, reload, render, toast, esc, loadUsage, get db() { return db; }, DEMO, CFG, kindLabel: KIND_LABEL, can, ALL_PERMS };
 
+  // Wide tables scroll sideways. Keyboard users can only scroll them if the scroller can take focus.
+  let scrollerCount = 0;
+  const focusableScrollers = () => {
+    for (const w of document.querySelectorAll(".table-wrap:not([tabindex])")) {
+      w.tabIndex = 0;
+      w.setAttribute("role", "region");
+      w.setAttribute("aria-label", `${(w.closest(".panel")?.querySelector("h2, h3")?.textContent || "Table").trim()} table ${++scrollerCount}`);
+    }
+  };
+  new MutationObserver(focusableScrollers).observe(document.body, { childList: true, subtree: true });
+  focusableScrollers();
+
   restoreFilters();
   wire();
   api.init().then((signedIn) => (signedIn ? start() : showLogin())).catch((e) => {

@@ -70,19 +70,21 @@
         </div>
       </details>
     </header>
+
+    <main class="page-main">
     <div id="demo-banner" class="demo-banner" hidden>
       Demo mode with sample data. Fill in <code>web/config.js</code> to connect your database.
     </div>
-
+    <h1 class="sr-only">PAO News Monitor</h1>
     <section id="brief-view" class="brief-view" hidden>
       <div class="admin-head">
         <h2>Brief</h2>
         <button class="btn" id="brief-back" type="button">← Back to news</button>
       </div>
       <div class="brief-layout">
-        <aside class="panel brief-side">
-          <div id="brief-create" class="brief-create" hidden>
-            <h3>Create a brief</h3>
+        <div class="panel brief-side">
+          <details id="brief-create" class="brief-create" hidden open>
+            <summary><h3>Create a brief</h3></summary>
             <div class="usage-range">
               <label>From <input type="date" id="bc-from"></label>
               <label>To <input type="date" id="bc-to"></label>
@@ -98,9 +100,9 @@
             <button class="btn primary" id="bc-run" type="button">Create brief</button>
             <p class="run-status small" id="bc-status" hidden></p>
             <p class="muted small">Covers the dates you pick, both included (UTC days). It appears below as a draft in about 5 minutes. Items rated Low or No relevance are left out.</p>
-          </div>
+          </details>
           <h3>Briefs</h3><ol id="brief-list" class="brief-list"></ol>
-          <p class="muted small">A brief is written every day at about 12 noon from the past day's High and Medium items (plus any open opportunities to comment). Team members can edit; admins approve.</p></aside>
+          <p class="muted small">A brief is written every day at about 12 noon from the past day's High and Medium items (plus any open opportunities to comment). Team members can edit; admins approve.</p></div>
         <div class="panel brief-main">
           <div class="brief-tools" id="brief-tools"></div>
           <div id="brief-body"></div>
@@ -340,8 +342,9 @@
     <p class="run-status small" id="run-news-status" hidden></p>
 
     <div class="layout">
-      <main id="main" class="main"></main>
+      <div id="main" class="main"></div>
     </div>
+    </main>
   </div>
 
   <dialog id="add-dialog">

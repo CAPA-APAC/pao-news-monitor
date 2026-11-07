@@ -2,6 +2,13 @@
 
 Plain-language log of what changed and why, for anyone who isn't reading the code. One entry per fix or feature, newest first. See the User Guide for how to use each thing; see `_bmad-output/.../addendum.md` for technical detail.
 
+## 2026-11-07 — Accessibility and phone fixes across the site
+Checked every tab (News, Brief, Brief editor, Ask AI, Status, Admin) on desktop and phone width with an automated accessibility checker; it found 8 kinds of problems and now finds none. No change to how anything works.
+- **Easier to read:** amber "warning" and "Draft" labels were too pale (3.2:1); they are darker now (5.3:1).
+- **Screen readers and keyboard:** each page now has a main area and a page heading; the role dropdowns on the Admin tab and the "no news" box in the brief editor have names; empty table columns say "Actions"; wide tables can be scrolled with the keyboard.
+- **Phones and tablets:** buttons, dropdowns and the relevance buttons are at least 40px tall so they are easy to tap (desktop keeps the compact size).
+- **Brief tab on a phone:** "Create a brief" now folds away so the brief itself is not pushed far down the page. It stays open on desktop.
+
 ## 2026-11-06 — Edit the brief as story cards
 - **Edit on the Brief tab now shows each story as a card** (title, details, link and, for highlights, a summary) instead of a wall of text with long links. Use ▲▼ to reorder, **Move to…** to change a story's section (Highlights, Other key news, Also worth knowing), **Delete** (with **Undo**), and **+ Add a story** to search the tracker's news and drop one in with its link filled in. Highlights hold two stories; if full, move one out first.
 - Nothing about sending changed: it saves the same text as before, so the page, **Copy for email**, **Download Word** and the mailing-list email look the same. **Edit as text** is still there for anything unusual, and older-style briefs open as text.
