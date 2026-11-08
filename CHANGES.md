@@ -2,6 +2,14 @@
 
 Plain-language log of what changed and why, for anyone who isn't reading the code. One entry per fix or feature, newest first. See the User Guide for how to use each thing; see `_bmad-output/.../addendum.md` for technical detail.
 
+## 2026-11-08 — Run the jobs on a CAPA PC, without GitHub
+GitHub suspended the account the monitor's jobs ran on, so the daily collect, the noon brief and the brief sender had nowhere to run. They can now run on an ordinary Windows PC instead.
+- **Same jobs, same times (Malaysia time):** collect 05:37, brief 12:03, and the brief sender every 10 minutes. If the PC was off at the time, the job runs when it is back on (once for that day).
+- **Set-up is three double-clicks:** `local-runner\setup.bat` (installs everything and opens the keys file), `run.bat` (starts it), and a shortcut in the Windows Startup folder so it starts with the PC. Steps are in `local-runner/README.md`.
+- **Keys stay on that PC** in `local-runner\.env`. Use new keys: the old ones were stored at GitHub.
+- `run-now.bat collect|brief|send` runs a job on demand, and `--status` shows when each last ran.
+- **Not yet:** the **Update news** and **Create brief** buttons on the website still go through GitHub, so they do not work until that is switched over.
+
 ## 2026-11-07 — Accessibility and phone fixes across the site
 Checked every tab (News, Brief, Brief editor, Ask AI, Status, Admin) on desktop and phone width with an automated accessibility checker; it found 8 kinds of problems and now finds none. No change to how anything works.
 - **Easier to read:** amber "warning" and "Draft" labels were too pale (3.2:1); they are darker now (5.3:1).

@@ -37,6 +37,8 @@ Every day at about **12:00 noon** (Malaysia time; GitHub can start it up to half
 
 Open it with **Brief** in the top bar. Team members can **Edit** it; an admin **Approves** it. **Copy for email** copies it with formatting for an Outlook email; **Download Word** gives a .doc file. Nothing is sent automatically. Admins make one now with **Create a brief** at the top of that page: pick From and To dates (or a quick range) and press **Create brief** - it appears in the list as a draft in a few minutes (see *Run from the site* below). On GitHub the same thing is **Actions → Brief → Run workflow** (fill *from_date* and *to_date*, or just *days*).
 
+**No GitHub? Run the jobs on a PC.** If GitHub is unavailable, the collect, brief and send jobs can run on an ordinary Windows PC instead, at the same times: see `local-runner/README.md` (setup.bat, run.bat).
+
 **Run from the site (one-time setup, admins).** The **Update news** button (News tab) and **Create brief** (Brief tab) start the GitHub jobs for you, and show whether they are running. The page itself can never hold a GitHub key, so a small server function does it after checking you are an admin:
 1. On GitHub: **Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token**. Repository access: **only this repository**. Permissions → Repository → **Actions: Read and write** (nothing else). Copy the token.
 2. In a terminal: `supabase secrets set GH_DISPATCH_TOKEN=<the token> --project-ref <your ref>`
