@@ -79,7 +79,7 @@
         </div>
         ${ORDER.map(section).join("")}
         <section class="be-sec"><h3>No news found <small class="muted">Organisations with nothing this period (leave empty to hide)</small></h3>
-          <input data-top="quiet" value="${esc(m.quiet)}"></section>
+          <input data-top="quiet" aria-label="Organisations with no news this period" value="${esc(m.quiet)}"></section>
         ${m.extra.length ? `<p class="muted small">This brief also has ${m.extra.length} line(s) of extra text. They are kept as they are; use <b>Edit as text</b> to change them.</p>` : ""}
       </div>`;
     }

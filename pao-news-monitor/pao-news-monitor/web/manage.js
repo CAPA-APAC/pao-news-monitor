@@ -56,7 +56,7 @@
   function renderMembers() {
     const rows = [...members].sort((a, b) =>
       (GROUPS.indexOf(a.grp) - GROUPS.indexOf(b.grp)) || ((a.sort_order ?? 0) - (b.sort_order ?? 0)));
-    $("#members-table").innerHTML = `<thead><tr><th>Abbr</th><th>Name</th><th>Group</th><th>Country</th><th>Website</th><th>Status</th><th></th></tr></thead>
+    $("#members-table").innerHTML = `<thead><tr><th>Abbr</th><th>Name</th><th>Group</th><th>Country</th><th>Website</th><th>Status</th><th><span class="sr-only">Actions</span></th></tr></thead>
       <tbody>${rows.map((p) => `<tr class="${p.active === false ? "inactive" : ""}">
         <td><b>${esc(p.abbr || "")}</b></td><td>${esc(p.name)}</td><td>${esc(p.grp || "")}</td><td>${esc(p.jurisdiction || "")}</td>
         <td>${p.website ? `<a href="${esc(p.website)}" target="_blank" rel="noopener">${esc(p.website.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "").slice(0, 40))}</a>` : ""}</td>
@@ -266,7 +266,7 @@
     try { await loadRoles(); } catch (e) { $("#roles-table").innerHTML = `<tbody><tr><td class="error-box">${esc(friendly(e))}</td></tr></tbody>`; return; }
     const perms = Object.keys(PERM_LABEL);
     $("#roles-table").innerHTML = (rolesReady ? "" : `<caption class="warn-text small">Run supabase/update-8.sql to create roles and change permissions.</caption>`) +
-      `<thead><tr><th>Role</th>${perms.map((p) => `<th title="${esc(PERM_LABEL[p][1])}">${esc(PERM_LABEL[p][0])}</th>`).join("")}<th>People</th><th></th></tr></thead><tbody>` +
+      `<thead><tr><th>Role</th>${perms.map((p) => `<th title="${esc(PERM_LABEL[p][1])}">${esc(PERM_LABEL[p][0])}</th>`).join("")}<th>People</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody>` +
       roleRows.map((r) => {
         const isAdm = r.name === "admin";
         return `<tr><td><b>${esc(r.label)}</b>${r.builtin ? "" : " <span class='muted small'>(custom)</span>"}</td>
@@ -322,10 +322,10 @@
       roleUse = {};
       for (const p of people) roleUse[p.role] = (roleUse[p.role] || 0) + 1;
       document.querySelectorAll("#roles-table tbody tr").forEach((tr, i) => { const r = roleRows[i]; if (r && tr.cells[tr.cells.length - 2]) tr.cells[tr.cells.length - 2].textContent = roleUse[r.name] || 0; });
-      $("#people-table").innerHTML = `<thead><tr><th>Email</th><th>Role</th><th>Status</th><th>Role last changed</th><th></th></tr></thead>
+      $("#people-table").innerHTML = `<thead><tr><th>Email</th><th>Role</th><th>Status</th><th>Role last changed</th><th><span class="sr-only">Actions</span></th></tr></thead>
         <tbody>${people.map((p) => `<tr class="${p.role === "removed" ? "inactive" : ""}">
           <td>${esc(p.email)}${p.email === me() ? " <span class='muted small'>(you)</span>" : ""}</td>
-          <td><select data-role-for="${esc(p.email)}">${Object.entries(ROLES).map(([r, label]) => `<option value="${r}"${p.role === r ? " selected" : ""}>${label}</option>`).join("")}</select></td>
+          <td><select data-role-for="${esc(p.email)}" aria-label="Role for ${esc(p.email)}">${Object.entries(ROLES).map(([r, label]) => `<option value="${r}"${p.role === r ? " selected" : ""}>${label}</option>`).join("")}</select></td>
           <td class="muted small">${p.role === "removed" ? "Access removed" : p.signed_up === false ? "Not signed up yet" : p.last_sign_in_at ? "Last signed in " + new Date(p.last_sign_in_at).toLocaleDateString() : "Signed up"}</td>
           <td class="muted small">${p.role_updated_by ? `${esc(p.role_updated_by)}, ${new Date(p.role_updated_at).toLocaleDateString()}` : ""}</td>
           <td>${p.email === me() ? "" : `<button class="link small danger" type="button" data-person-delete="${esc(p.email)}" data-signed-up="${p.signed_up === false ? "0" : "1"}">Delete</button>`}</td>
@@ -415,7 +415,7 @@
       await loadMailingList();
       const on = mailing.filter((m) => m.active).length;
       $("#ml-count").textContent = `${on} receiving${mailing.length > on ? `, ${mailing.length - on} paused` : ""}`;
-      $("#ml-table").innerHTML = mailing.length ? `<thead><tr><th>Name</th><th>Email</th><th>Organisation</th><th>Status</th><th></th></tr></thead><tbody>${mailing.map((m) => `
+      $("#ml-table").innerHTML = mailing.length ? `<thead><tr><th>Name</th><th>Email</th><th>Organisation</th><th>Status</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody>${mailing.map((m) => `
         <tr class="${m.active ? "" : "inactive"}"><td>${esc(m.name || "")}</td><td>${esc(m.email)}</td><td>${esc(m.organisation || "")}</td>
         <td>${m.active ? "Receiving" : "Paused"}</td>
         <td class="row-tools"><button class="link small" data-ml-toggle="${esc(m.email)}" type="button">${m.active ? "Pause" : "Resume"}</button>
@@ -557,7 +557,7 @@
     $("#import-preview").innerHTML = `
       <p><b>${ok.length}</b> row(s) ready${ok.length ? ": " + Object.entries(byPao).map(([k, n]) => `${n} ${esc(k)}`).join(", ") : ""}.
         ${bad.length ? `<span class="warn-text">${bad.length} row(s) will be skipped.</span>` : ""}</p>
-      <div class="table-wrap"><table class="grid"><thead><tr><th>Row</th><th>PAO</th><th>Type</th><th>Date</th><th>Title</th><th></th></tr></thead><tbody>
+      <div class="table-wrap"><table class="grid"><thead><tr><th>Row</th><th>PAO</th><th>Type</th><th>Date</th><th>Title</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody>
       ${pending.slice(0, 300).map((r) => `<tr class="${r.item ? "" : "bad"}"><td>${r.line}</td><td>${esc(r.pao ? (r.pao.abbr || r.pao.name) : r.paoText)}</td>
         <td>${r.item ? esc(A.kindLabel[r.item.kind]) : ""}</td><td>${r.item?.published_at ? r.item.published_at.slice(0, 10) : ""}</td>
         <td>${esc(r.title)}</td><td class="warn-text small">${esc(r.problem)}</td></tr>`).join("")}

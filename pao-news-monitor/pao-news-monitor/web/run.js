@@ -114,6 +114,7 @@
     $("#brief-create").hidden = !on;
     if (!on || attached) return;
     attached = true;
+    if (matchMedia("(max-width: 760px)").matches) $("#brief-create").open = false;   // phones: the brief itself comes first
     if (!$("#bc-from").value) preset("7");
     // if one is already running (started earlier, or by the schedule), pick it up
     if (!A.DEMO) call({ action: "status" }).then((s) => {
