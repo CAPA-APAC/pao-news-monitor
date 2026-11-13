@@ -547,6 +547,10 @@ dialog.zoom img { display: block; max-width: 100%; max-height: calc(100vh - 120p
 .be-link { display: flex; gap: 8px; align-items: center; }
 .be-link input { flex: 1; min-width: 0; }
 .be-add { margin-top: 8px; padding: 10px; border: 1px dashed var(--line); border-radius: 8px; display: grid; gap: 8px; }
+.be-filter { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.be-filter label { display: flex; gap: 6px; align-items: center; font-size: 13px; }
+.be-filter select, .be-filter input { padding: 4px 6px; font-size: 13px; max-width: 100%; }
+.be-count { margin: 0; }
 .be-results { display: grid; gap: 4px; max-height: 280px; overflow: auto; }
 .be-result { text-align: left; font: inherit; font-size: 13px; padding: 6px 8px; border: 1px solid var(--line-soft); border-radius: 6px; background: var(--panel); cursor: pointer; display: block; }
 .be-result:hover:not(:disabled) { background: var(--accent-soft); }

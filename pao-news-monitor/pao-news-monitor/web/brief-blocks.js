@@ -103,7 +103,20 @@
   function toHighlight(s) { return { title: s.title, url: s.url, meta: s.meta ?? s.details ?? "", text: s.text || "" }; }
   function toListItem(s) { return { title: s.title, url: s.url, details: s.details ?? s.meta ?? "" }; }
 
-  const api = { parse, serialize, fromItem, toHighlight, toListItem, emptyModel, MAX_HIGHLIGHTS, SECTIONS };
+  // Which tracker items the "Add a story" list offers, newest first. `range` = { from, to } as UTC days (YYYY-MM-DD,
+  // both included) or null for any date. Uses the same date as the brief itself (published, else first found).
+  // Stories already in the brief go last, and so do ones dated in the future (an event "28-30 March 2028" is not news of today).
+  const dayOf = (it) => (it.published_at || it.first_seen_at || "").slice(0, 10);
+  function candidates(items, o) {
+    const q = (o.query || "").trim().toLowerCase(), used = o.used || new Set(), today = (o.now || new Date().toISOString()).slice(0, 10);
+    const when = (it) => it.published_at || it.first_seen_at || "";
+    return (items || []).filter((it) => !it.removed_at && it.title && it.url)
+      .filter((it) => !o.range || (dayOf(it) >= o.range.from && dayOf(it) <= o.range.to))
+      .filter((it) => !q || `${it.title} ${o.abbr ? o.abbr(it.pao_id) : ""}`.toLowerCase().includes(q))
+      .sort((a, b) => (used.has(a.url) - used.has(b.url)) || ((dayOf(a) > today) - (dayOf(b) > today)) || when(b).localeCompare(when(a)));
+  }
+
+  const api = { parse, serialize, fromItem, candidates, dayOf, toHighlight, toListItem, emptyModel, MAX_HIGHLIGHTS, SECTIONS };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else window.BriefBlocks = api;
 })();

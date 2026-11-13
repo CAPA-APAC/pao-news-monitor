@@ -1,5 +1,5 @@
 /* The brief's Edit screen: story cards instead of raw text.
- *   BriefEditor.mount(element, markdown, { esc, items, abbr, toast }) -> { markdown(), dirty() }
+ *   BriefEditor.mount(element, markdown, { esc, items, abbr, toast, period: { start, end, label } }) -> { markdown(), dirty() }
  * Each story is a card (title, link, details, and a summary for highlights) that can be moved up/down, moved to
  * another section, deleted, or added from the tracker. Reading and writing the stored text is brief-blocks.js. */
 (() => {
@@ -19,7 +19,7 @@
     let m = B.parse(markdown);
     if (!m) return null;
     const original = B.serialize(m);
-    let undo = [], adding = null, query = "";
+    let undo = [], adding = null, query = "", when = "period", pickedDay = "";
 
     const snapshot = () => { undo.push(JSON.stringify(m)); if (undo.length > 50) undo.shift(); };
     const full = () => m.hl.filter((s) => (s.title || s.url || "").trim()).length >= B.MAX_HIGHLIGHTS;
@@ -43,19 +43,46 @@
       </div>`;
     }
 
+    const utcDay = (d) => d.toISOString().slice(0, 10);
+    const dayShift = (day, n) => utcDay(new Date(Date.parse(day + "T00:00:00Z") + n * 864e5));
+    const periodDays = () => { const a = (opts.period?.start || "").slice(0, 10), b = (opts.period?.end || "").slice(0, 10); return a && b ? { from: a, to: b } : null; };
+    // the days the "Add a story" list covers; null = any date
+    function range() {
+      const today = utcDay(new Date());
+      if (when === "today") return { from: today, to: today };
+      if (when === "yesterday") { const y = dayShift(today, -1); return { from: y, to: y }; }
+      if (when === "day") return pickedDay ? { from: pickedDay, to: pickedDay } : null;
+      if (when === "period") return periodDays();
+      return null;
+    }
+
+    function filterBar() {
+      const label = opts.period?.label ? ` (${opts.period.label})` : "";
+      const choice = (v, text) => `<option value="${v}"${when === v ? " selected" : ""}>${esc(text)}</option>`;
+      return `<div class="be-filter"><label>News from
+          <select class="be-when">${periodDays() ? choice("period", "This brief's dates" + label) : ""}${choice("today", "Today")}${choice("yesterday", "Yesterday")}${choice("day", "One day…")}${choice("all", "Any date")}</select></label>
+        ${when === "day" ? `<input type="date" class="be-day" value="${esc(pickedDay)}" aria-label="Day to show">` : ""}</div>`;
+    }
+
+    // [rows html, count text]
     function results() {
-      const q = query.trim().toLowerCase(), used = usedUrls();
-      const rows = (opts.items() || []).filter((it) => !it.removed_at && it.title && it.url)
-        .filter((it) => !q || `${it.title} ${opts.abbr(it.pao_id)}`.toLowerCase().includes(q))
-        // not-yet-used stories first (newest first), so a full page of "already in the brief" never hides the rest
-        .sort((a, b) => (used.has(a.url) - used.has(b.url)) || (b.published_at || b.first_seen_at || "").localeCompare(a.published_at || a.first_seen_at || ""))
-        .slice(0, 20);
-      return rows.length ? rows.map((it) => {
-        const day = (it.published_at || it.first_seen_at || "").slice(0, 10);
+      const used = usedUrls(), r = range();
+      const all = B.candidates(opts.items() || [], { range: r, query, used, abbr: opts.abbr });
+      const rows = all.slice(0, 20);
+      const html = rows.length ? rows.map((it) => {
+        const day = B.dayOf(it);
         const dup = used.has(it.url);
         return `<button type="button" class="be-result" data-act="pick" data-id="${esc(it.id)}"${dup ? " disabled" : ""}>
           <span class="be-result-meta">${esc(opts.abbr(it.pao_id))} · ${esc(day)}${dup ? " · already in the brief" : ""}</span>${esc(it.title)}</button>`;
-      }).join("") : `<p class="muted small">Nothing matches. Only news already loaded in the tracker is searched.</p>`;
+      }).join("") : `<p class="muted small">Nothing matches${r ? " for those days. Try <b>Any date</b>, or another day" : ""}. Only news already loaded in the tracker is searched.</p>`;
+      const count = !all.length ? "" : all.length > rows.length ? `Showing ${rows.length} of ${all.length}. Search or pick a day to narrow it.` : `${all.length} ${all.length === 1 ? "story" : "stories"}`;
+      return [html, count];
+    }
+
+    function refreshResults() {
+      const [html, count] = results();
+      el.querySelector(".be-results").innerHTML = html;
+      el.querySelector(".be-count").textContent = count;
     }
 
     function section(sec) {
@@ -65,7 +92,8 @@
         ${isFull ? `<p class="muted small">Highlights are full (two). Move one out to make room.</p>`
           : `<button type="button" class="btn small" data-act="add">${adding === sec ? "Close" : "+ Add a story"}</button>`}
         ${adding === sec ? `<div class="be-add"><input type="search" class="be-search" placeholder="Search the tracker's news…" value="${esc(query)}">
-          <div class="be-results">${results()}</div>
+          ${filterBar()}<p class="muted small be-count" aria-live="polite">${esc(results()[1])}</p>
+          <div class="be-results">${results()[0]}</div>
           <button type="button" class="btn small ghost" data-act="blank">Write one myself</button></div>` : ""}
       </section>`;
     }
@@ -98,7 +126,7 @@
 
     el.addEventListener("input", (e) => {
       const t = e.target;
-      if (t.classList.contains("be-search")) { query = t.value; el.querySelector(".be-results").innerHTML = results(); return; }
+      if (t.classList.contains("be-search")) { query = t.value; refreshResults(); return; }
       if (t.dataset.top) { m[t.dataset.top] = t.value; return; }
       const [sec, i] = at(t);
       if (sec && t.dataset.f) m[sec][i][t.dataset.f] = t.value;
@@ -106,6 +134,8 @@
 
     el.addEventListener("change", (e) => {
       const t = e.target;
+      if (t.classList.contains("be-when")) { when = t.value; if (when === "day" && !pickedDay) pickedDay = (opts.period?.end || "").slice(0, 10) || utcDay(new Date()); render(); el.querySelector(".be-when")?.focus(); return; }
+      if (t.classList.contains("be-day")) { pickedDay = t.value; refreshResults(); return; }
       if (t.dataset.act !== "move" || !t.value) return;
       const [sec, i] = at(t), to = t.value;
       if (to === "hl" && full()) { opts.toast("Highlights are full (two). Move one out first.", true); t.value = ""; return; }
@@ -121,7 +151,7 @@
       if (!b || b.tagName === "SELECT") return;
       const act = b.dataset.act, [sec, i] = at(b);
       if (act === "undo") { if (undo.length) { m = JSON.parse(undo.pop()); render(); } return; }
-      if (act === "add") { const s = b.closest(".be-sec").dataset.sec; adding = adding === s ? null : s; query = ""; render(); el.querySelector(".be-search")?.focus(); return; }
+      if (act === "add") { const s = b.closest(".be-sec").dataset.sec; adding = adding === s ? null : s; query = ""; when = periodDays() ? "period" : "today"; render(); el.querySelector(".be-search")?.focus(); return; }
       if (act === "blank") { addStory(b.closest(".be-sec").dataset.sec, { title: "", url: "", details: "", meta: "", text: "" }); return; }
       if (act === "pick") {
         const it = (opts.items() || []).find((x) => String(x.id) === b.dataset.id);
