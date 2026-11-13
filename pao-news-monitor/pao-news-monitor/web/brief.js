@@ -182,6 +182,7 @@
         body.innerHTML = meta + `<p class="muted small">Edit each story in its card. Use the arrows to reorder, <b>Move to…</b> to change section, and <b>+ Add a story</b> to pull one in from the tracker. Nothing is saved until you press <b>Save</b>.</p><div id="brief-blocks"></div>`;
         editor = window.BriefEditor.mount($("#brief-blocks"), md, {
           esc, toast: A.toast, items: () => A.state.items,
+          period: { start: current.period_start, end: current.period_end, label: `${fmt(current.period_start)} – ${fmt(current.period_end)}` },
           abbr: (id) => { const p = A.state.paos.find((x) => x.id === id); return p ? (p.abbr || p.name) : ""; },
         });
         return;

@@ -81,3 +81,50 @@ def test_tracker_item_becomes_a_story():
                  i={"title": "  Korea cuts   CPA intake ", "url": "https://x.org/k", "published_at": "2026-11-05T01:00:00Z", "language": "ko", "ai_summary": "Korea plans to cut the CPA intake."})
     assert out["title"] == "Korea plans to cut the CPA intake."          # non-English: the English summary, like the brief does
     assert out["details"] == "KICPA · 5 Nov 2026" and out["url"] == "https://x.org/k"
+
+
+# ---- "Add a story" list: only the days asked for
+def cands(items, **opts):
+    return run_js("process.stdout.write(JSON.stringify(B.candidates(D.items, D.opts).map((x) => x.id)))", items=items, opts=opts)
+
+
+def day_items():
+    return [
+        item("nov10", "icai", "Ten", published_at="2026-11-10T03:00:00+00:00"),
+        item("nov11a", "icai", "Eleven early", published_at="2026-11-11T01:00:00+00:00"),
+        item("nov11b", "kicpa", "Eleven late", published_at="2026-11-11T20:00:00+00:00"),
+        item("nov12", "icai", "Twelve", published_at="2026-11-12T01:00:00+00:00"),
+        item("event2028", "icai", "28 - 30 March 2028 | Tashkent", published_at="2028-03-30T00:00:00+00:00"),
+        item("undated", "icai", "No publish date", published_at=None, first_seen_at="2026-11-11T05:00:00+00:00"),
+    ]
+
+
+def test_only_the_chosen_day_is_offered():
+    got = cands(day_items(), range={"from": "2026-11-11", "to": "2026-11-11"}, now="2026-11-13T00:00:00Z")
+    assert got == ["nov11b", "undated", "nov11a"]            # newest first; the day it was first found counts when there is no publish date
+
+
+def test_a_range_includes_both_end_days():
+    got = cands(day_items(), range={"from": "2026-11-11", "to": "2026-11-12"}, now="2026-11-13T00:00:00Z")
+    assert set(got) == {"nov11a", "nov11b", "nov12", "undated"}
+
+
+def test_any_date_puts_future_dated_events_last():
+    got = cands(day_items(), range=None, now="2026-11-13T00:00:00Z")
+    assert got[-1] == "event2028" and got[0] == "nov12"
+
+
+def test_stories_already_in_the_brief_go_last_and_search_still_applies():
+    items = day_items()
+    got = cands(items, range={"from": "2026-11-10", "to": "2026-11-12"}, now="2026-11-13T00:00:00Z")
+    assert got[0] == "nov12"
+    out = run_js("process.stdout.write(JSON.stringify(B.candidates(D.items, {range: null, used: new Set([D.items[3].url]), query: 'twelve', now: '2026-11-13T00:00:00Z'}).map((x) => x.id)))", items=items)
+    assert out == ["nov12"]
+    out = run_js("process.stdout.write(JSON.stringify(B.candidates(D.items, {range: {from:'2026-11-10', to:'2026-11-12'}, used: new Set([D.items[3].url]), now: '2026-11-13T00:00:00Z'}).map((x) => x.id)))", items=items)
+    assert out[-1] == "nov12"
+
+
+def test_removed_and_untitled_items_are_never_offered():
+    items = day_items() + [item("gone", "icai", "Gone", removed_at="2026-11-12T00:00:00Z", published_at="2026-11-11T01:00:00+00:00"),
+                           {"id": "nourl", "pao_id": "icai", "title": "No link", "url": "", "published_at": "2026-11-11T01:00:00+00:00"}]
+    assert "gone" not in cands(items, range=None) and "nourl" not in cands(items, range=None)

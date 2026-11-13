@@ -2,6 +2,11 @@
 
 Plain-language log of what changed and why, for anyone who isn't reading the code. One entry per fix or feature, newest first. See the User Guide for how to use each thing; see `_bmad-output/.../addendum.md` for technical detail.
 
+## 2026-11-13 — Add a story: pick the days to show
+- **Adding a story to a brief no longer lists everything.** In the brief editor, **+ Add a story** now has a **News from** menu. It starts on **this brief's dates**, so a brief for 11 Nov shows 11 Nov news. You can switch to **Today**, **Yesterday**, **One day…** (pick any date) or **Any date**.
+- **Future-dated events no longer lead the list.** Items dated in the future, such as a conference listed for March 2028, now sort to the end instead of the top.
+- It shows how many stories match, and says so when nothing is found for the days chosen. Searching by words still works inside the chosen days. Nothing else about editing or saving a brief changed.
+
 ## 2026-11-08 — Run the jobs on a CAPA PC, without GitHub
 GitHub suspended the account the monitor's jobs ran on, so the daily collect, the noon brief and the brief sender had nowhere to run. They can now run on an ordinary Windows PC instead.
 - **Same jobs, same times (Malaysia time):** collect 05:37, brief 12:03, and the brief sender every 10 minutes. If the PC was off at the time, the job runs when it is back on (once for that day).
