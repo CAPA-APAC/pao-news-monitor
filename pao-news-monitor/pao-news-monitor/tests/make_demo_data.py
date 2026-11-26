@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 from collector.common import iso, load_paos, make_id, now_utc  # noqa: E402
 from collector.main import pao_rows  # noqa: E402
 
@@ -124,9 +125,13 @@ def sample_usage():
     return [{"at": t.isoformat(), "feature": f, "model": m, "prompt_tokens": pt, "completion_tokens": ct} for f, m, pt, ct, t in rows]
 
 
+from demo_standards import sample_standards  # noqa: E402
+
+# ISSB isn't collected (it shares IASB's website) so it isn't in the main list, but the Standards tab shows it
+paos += [dict(p, active=False) for p in pao_rows(load_paos()) if p["id"] == "issb"]
 out = Path(__file__).resolve().parent.parent / "web" / "demo-data.json"
 out.write_text(json.dumps({"paos": paos, "items": items, "health": health, "briefs": briefs,
                            "runs": [{"started_at": d(0.11), "finished_at": d(0.1), "summary": {"new": 4}}],
-                           "usage": sample_usage()},
+                           "usage": sample_usage(), **sample_standards()},
                           ensure_ascii=False, indent=1), encoding="utf-8")
 print("wrote", out, len(items), "items")

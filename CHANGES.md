@@ -8,6 +8,14 @@ Plain-language log of what changed and why, for anyone who isn't reading the cod
 - **What is never folded:** anything staff marked High or Medium, anything with a note, and leadership / contact change notices.
 - **How it decides what is "one event":** WCOA is built in (also by its full name and its Korean name). Any other capitalised name (4 to 8 capitals, for example MOSAIC) used in 5 or more headlines counts too. The organisation's own name, other organisations' names, and common acronyms such as IFRS, ESG or ASEAN never do.
 
+## 2026-11-26 — New Standards tab: a calendar of what the standard setters are doing
+- **A new Standards tab** follows IAASB, IESBA, IASB, ISSB, IPSASB (and the other standard setters in the member list). It opens on a **calendar**: a period such as an exposure draft's comment window is a **bar** from its first to its last day; a meeting, the day a standard is issued, or an effective date is a **small block**. Each kind has its own colour and its own small icon, and you can switch kinds on and off or narrow to one standard setter or one standard.
+- **By standard** lists each standard setter, then each of its standards, with a **progress line** like a parcel tracker. Every standard starts with four steps (planning / work plan, exposure draft and call for comments, post-comments meetings, implementation). **Every extra date adds a step by itself**: a second call for comments, a third meeting. Steps with no date yet are shown empty, and clicking one adds the date.
+- **Dates come from emails.** The daily collection now reads each new email from a standard setter, including **PDF attachments** such as agendas and work plans, and adds the dates it states. Only dates written in the email are used (a bare "Q2 2027" is ignored), and each email is read once. Dates added this way have a **dashed outline** until someone clicks **Looks right** or edits them. Dates people typed are never changed.
+- **People who may "Add items"** can add and edit standards and dates (**+ Add standard**, **+ Add date**), the same permission as adding a news item. Everyone with access can look.
+- **To switch it on,** run `supabase/update-23.sql` once in Supabase. Until then the tab says so, and the daily collection skips this step.
+- The tab also has a **Coming up** list (open consultations first) and works in demo mode with sample standards.
+
 ## 2026-11-13 — Add a story: pick the days to show
 - **Adding a story to a brief no longer lists everything.** In the brief editor, **+ Add a story** now has a **News from** menu. It starts on **this brief's dates**, so a brief for 11 Nov shows 11 Nov news. You can switch to **Today**, **Yesterday**, **One day…** (pick any date) or **Any date**.
 - **Future-dated events no longer lead the list.** Items dated in the future, such as a conference listed for March 2028, now sort to the end instead of the top.

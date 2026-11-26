@@ -13,7 +13,7 @@ import threading
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 
-from . import browser, email_inbox, leaders, news_search, pagewatch, relevance, websites
+from . import browser, email_inbox, leaders, news_search, pagewatch, relevance, standards, websites
 from .common import PAO, iso, load_paos, log, now_utc
 from .store import get_store
 
@@ -285,6 +285,11 @@ def run(only=None, sources=None, dry_run=False, workers=8):
             log.warning("AI relevance skipped: %s", e)
             ai_note = f"AI relevance: skipped ({type(e).__name__})"
 
+    # dates in emails from the standard setters -> the Standards tab (supabase/update-23.sql); never fails the run
+    standards_note = None
+    if not problems and not only and "email" in sources:
+        standards_note = standards.scan(store)
+
     # daily clean-up of old clutter (supabase/update-10.sql); never fails the run
     purged = None
     if not only:
@@ -302,6 +307,7 @@ def run(only=None, sources=None, dry_run=False, workers=8):
         "db_update_needed": problems or None,
         "ai_relevance": ai_note,
         "leaders": leaders_note,
+        "standards": standards_note,
     }
     store.log_run({"started_at": iso(started), "finished_at": iso(now_utc()), "summary": summary})
 

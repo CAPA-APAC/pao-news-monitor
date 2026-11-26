@@ -608,7 +608,7 @@
   }
 
   // ---------- AI usage on the Admin tab (admins only): counts only (no questions or answers are ever stored) ----------
-  const USAGE_LABEL = { ask: "Ask AI", relevance: "Daily relevance check", tagging: "Brief: tagging", explain: "Brief: highlight explanations" };
+  const USAGE_LABEL = { ask: "Ask AI", relevance: "Daily relevance check", tagging: "Brief: tagging", explain: "Brief: highlight explanations", standards: "Standards: reading emails" };
   let usageData = null;
   const fmtTok = (n) => n >= 1e9 ? (n / 1e9).toFixed(2) + "B" : n >= 1e6 ? (n / 1e6).toFixed(2) + "M" : n >= 1e3 ? (n / 1e3).toFixed(1) + "K" : String(Math.round(n));
   const fmtUsd = (v) => v === 0 ? "$0" : v < 0.01 ? "<$0.01" : "$" + v.toLocaleString("en-US", { minimumFractionDigits: v < 1 ? 3 : 2, maximumFractionDigits: v < 1 ? 3 : 2 });
@@ -695,7 +695,7 @@
   }
 
   function openStatus() {
-    for (const sel of [".filters", ".layout", "#brief-view", "#admin-view", "#ask-view"]) document.querySelector(sel).hidden = true;
+    for (const sel of [".filters", ".layout", "#brief-view", "#admin-view", "#ask-view", "#standards-view"]) document.querySelector(sel).hidden = true;
     $("#status-view").hidden = false;
     renderStatus();
     window.scrollTo(0, 0);
@@ -707,8 +707,8 @@
 
   // the section buttons show which view is open
   function markNav() {
-    const brief = !$("#brief-view").hidden, status = !$("#status-view").hidden, admin = !$("#admin-view").hidden, ask = !$("#ask-view").hidden;
-    for (const [id, on] of Object.entries({ "news-btn": !brief && !status && !admin && !ask, "brief-btn": brief, "ask-nav": ask, "status-btn": status })) {
+    const brief = !$("#brief-view").hidden, status = !$("#status-view").hidden, admin = !$("#admin-view").hidden, ask = !$("#ask-view").hidden, std = !$("#standards-view").hidden;
+    for (const [id, on] of Object.entries({ "news-btn": !brief && !status && !admin && !ask && !std, "brief-btn": brief, "standards-btn": std, "ask-nav": ask, "status-btn": status })) {
       const el = $("#" + id);
       el.classList.toggle("active", on);
       if (on) el.setAttribute("aria-current", "page"); else el.removeAttribute("aria-current");
@@ -788,7 +788,7 @@
     }, true);
     // top bar: News goes back from whichever view is open; Status opens its page
     $("#news-btn").addEventListener("click", () => {
-      for (const sec of ["#brief-view", "#admin-view", "#status-view", "#ask-view"]) {
+      for (const sec of ["#brief-view", "#admin-view", "#status-view", "#ask-view", "#standards-view"]) {
         if (!$(sec).hidden) $(sec).querySelector("button[id$='-back']").click();
       }
     });
@@ -801,7 +801,7 @@
       renderUsage();
     });
     $("#status-back").addEventListener("click", closeStatus);
-    for (const sec of ["#brief-view", "#admin-view", "#status-view", "#ask-view"]) new MutationObserver(markNav).observe($(sec), { attributes: true, attributeFilter: ["hidden"] });
+    for (const sec of ["#brief-view", "#admin-view", "#status-view", "#ask-view", "#standards-view"]) new MutationObserver(markNav).observe($(sec), { attributes: true, attributeFilter: ["hidden"] });
     // the profile menu closes after a choice, or when you click elsewhere
     $$(".profile-menu button").forEach((b) => b.addEventListener("click", () => ($("#profile").open = false)));
     document.addEventListener("click", (e) => { if ($("#profile").open && !$("#profile").contains(e.target)) $("#profile").open = false; });
@@ -1074,7 +1074,7 @@
     await reload();
     state.openFromHash?.();
     // links from the other pages land on a view: index.html#brief, #ask, #status, #admin, #password
-    const views = { "#brief": "#brief-btn", "#ask": "#ask-nav", "#status": "#status-btn", "#admin": "#admin-btn" };
+    const views = { "#brief": "#brief-btn", "#standards": "#standards-btn", "#ask": "#ask-nav", "#status": "#status-btn", "#admin": "#admin-btn" };
     if (views[location.hash]) $(views[location.hash]).click();
     if (location.hash === "#password") openPassword("change");
   }

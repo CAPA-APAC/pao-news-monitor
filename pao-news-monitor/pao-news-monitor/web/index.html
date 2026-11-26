@@ -54,6 +54,7 @@
       <nav class="nav-links" aria-label="Sections">
         <button id="news-btn" class="nav-tab" type="button" aria-current="page">News</button>
         <button id="brief-btn" class="nav-tab" type="button">Brief</button>
+        <button id="standards-btn" class="nav-tab" type="button">Standards</button>
         <button id="ask-nav" class="nav-tab" type="button">Ask AI</button>
         <button id="status-btn" class="nav-tab" type="button">Status</button>
       </nav>
@@ -141,6 +142,56 @@
         <p class="muted small">Each source's last check. Hover a chip for the details.</p>
         <div class="table-wrap"><table class="grid" id="st-table"></table></div>
       </div>
+    </section>
+
+    <section id="standards-view" class="standards-view" hidden>
+      <div class="admin-head">
+        <h2>Standards</h2>
+        <div class="std-actions">
+          <button class="btn primary std-edit-only" id="std-add-date" type="button" hidden>+ Add date</button>
+          <button class="btn std-edit-only" id="std-add-standard" type="button" hidden>+ Add standard</button>
+          <button class="btn" id="standards-back" type="button">← Back to news</button>
+        </div>
+      </div>
+      <p class="muted small">What the standard setters are working on, and when. Dates are added by hand or read from the setters' emails.</p>
+      <div id="std-error" class="error-box" hidden></div>
+      <div class="panel std-filters" id="std-filters">
+        <div class="std-filter-row">
+          <span class="std-filter-label" id="std-pao-label">Standard setter</span>
+          <div class="std-chips" id="std-paos" role="group" aria-labelledby="std-pao-label"></div>
+          <label class="std-select">Standard
+            <select id="std-project"></select>
+          </label>
+          <div class="std-views" role="group" aria-label="View">
+            <button class="btn small" type="button" data-std-view="calendar" aria-pressed="true">Calendar</button>
+            <button class="btn small" type="button" data-std-view="standards" aria-pressed="false">By standard</button>
+          </div>
+        </div>
+        <div class="std-filter-row" id="std-type-row">
+          <span class="std-filter-label" id="std-type-label">Show on calendar</span>
+          <div class="std-chips std-legend" id="std-types" role="group" aria-labelledby="std-type-label"></div>
+        </div>
+        <p class="muted small std-note"><span class="std-auto-sample" aria-hidden="true"></span> A dashed outline means the date was read from an email and hasn't been checked yet.</p>
+      </div>
+      <div id="std-calendar">
+        <div class="panel std-cal-panel">
+          <div class="std-cal-head">
+            <div class="std-cal-nav">
+              <button class="btn small" type="button" id="std-prev" aria-label="Previous month">‹</button>
+              <button class="btn small" type="button" id="std-today">Today</button>
+              <button class="btn small" type="button" id="std-next" aria-label="Next month">›</button>
+            </div>
+            <h3 id="std-month" aria-live="polite"></h3>
+          </div>
+          <p class="muted small std-scroll-hint">Swipe sideways to see the whole week.</p>
+          <div class="table-wrap std-cal-wrap" id="std-cal" tabindex="0" role="region" aria-label="Standards calendar"></div>
+        </div>
+        <div class="panel">
+          <h3>Coming up</h3>
+          <ul class="std-upcoming" id="std-upcoming"></ul>
+        </div>
+      </div>
+      <div id="std-standards" hidden></div>
     </section>
 
     <section id="ask-view" class="ask-view" hidden>
@@ -363,6 +414,60 @@
     </form>
   </dialog>
 
+  <dialog id="std-standard-dialog">
+    <form method="dialog" id="std-standard-form" class="add-form">
+      <h2 id="std-standard-title">Add a standard</h2>
+      <label>Standard setter
+        <select name="pao_id" required></select>
+      </label>
+      <label>Standard or project <input name="title" required maxlength="200" placeholder="e.g. Audits of Less Complex Entities"></label>
+      <label>Link <input name="url" type="url" placeholder="https://"></label>
+      <label>Notes <textarea name="description" rows="2" maxlength="1000"></textarea></label>
+      <label>Status
+        <select name="status">
+          <option value="active">Active</option>
+          <option value="done">Finished</option>
+          <option value="withdrawn">Withdrawn</option>
+        </select>
+      </label>
+      <p class="muted small">Every standard starts with four steps: planning, exposure draft and call for comments, post-comments meetings, implementation. Each date you add fills one in, or adds a step.</p>
+      <div class="dialog-actions">
+        <button value="delete" formnovalidate class="btn danger" id="std-standard-delete" hidden>Delete</button>
+        <button value="cancel" formnovalidate class="btn ghost">Cancel</button>
+        <button value="save" class="btn primary">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="std-date-dialog">
+    <form method="dialog" id="std-date-form" class="add-form">
+      <h2 id="std-date-title">Add a date</h2>
+      <label>Standard
+        <select name="project_id" required></select>
+      </label>
+      <label>What
+        <select name="type" required></select>
+      </label>
+      <label>Label (optional) <input name="title" maxlength="200" placeholder="e.g. Board meeting, Kuala Lumpur"></label>
+      <div class="two">
+        <label><span id="std-start-label">Date</span> <input name="start_date" type="date" required></label>
+        <label id="std-end-wrap"><span>Last day <span class="muted">(for a period)</span></span> <input name="end_date" type="date"></label>
+      </div>
+      <label>Link <input name="url" type="url" placeholder="https://"></label>
+      <label>Notes <textarea name="notes" rows="2" maxlength="1000"></textarea></label>
+      <p class="login-msg" id="std-date-msg" role="status"></p>
+      <div class="dialog-actions">
+        <button value="delete" formnovalidate class="btn danger" id="std-date-delete" hidden>Delete</button>
+        <button value="cancel" formnovalidate class="btn ghost">Cancel</button>
+        <button value="save" class="btn primary">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="std-detail-dialog" class="std-detail">
+    <div class="add-form" id="std-detail"></div>
+  </dialog>
+
   <dialog id="member-dialog">
     <form method="dialog" id="member-form" class="add-form">
       <h2 id="member-form-title">Add member</h2>
@@ -459,9 +564,11 @@
   <script src="repeat-coverage.js"></script>
   <script src="app.js"></script>
   <script src="manage.js"></script>
+  <script src="standards-logic.js"></script>
   <script src="brief-blocks.js"></script>
   <script src="brief-editor.js"></script>
   <script src="brief.js"></script>
+  <script src="standards.js"></script>
   <script src="ask-ai.js"></script>
   <script src="run.js"></script>
 </body>

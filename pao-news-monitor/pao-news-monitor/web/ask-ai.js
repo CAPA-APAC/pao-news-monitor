@@ -31,7 +31,7 @@
   }
 
   function open() {
-    for (const sel of [".filters", ".layout", "#brief-view", "#admin-view", "#status-view"]) document.querySelector(sel).hidden = true;
+    for (const sel of [".filters", ".layout", "#brief-view", "#admin-view", "#status-view", "#standards-view"]) document.querySelector(sel).hidden = true;
     $("#ask-view").hidden = false;
     setup();
     window.scrollTo(0, 0);
