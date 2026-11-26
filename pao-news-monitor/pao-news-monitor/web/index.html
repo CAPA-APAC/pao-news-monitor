@@ -309,6 +309,7 @@
           <label><input type="checkbox" name="src" value="page_watch" checked> Page watch</label>
           <hr>
           <label title="Links found the first time a site was checked - may be old, never in the brief"><input type="checkbox" id="f-baseline"> Include first-scan links</label>
+          <label title="When one event fills an organisation's list (for example 15 articles about WCOA), keep the best 3 and fold the rest into one row. Nothing is deleted."><input type="checkbox" id="f-fold" checked> Fold repeated coverage</label>
           <div class="multi-tools"><button type="button" data-multi="all">All</button><button type="button" data-multi="none">None</button></div>
         </div>
       </details>
@@ -455,6 +456,7 @@
   <div id="toast" class="toast" role="status" hidden></div>
 
   <script src="config.js"></script>
+  <script src="repeat-coverage.js"></script>
   <script src="app.js"></script>
   <script src="manage.js"></script>
   <script src="brief-blocks.js"></script>

@@ -575,3 +575,10 @@ dialog.zoom img { display: block; max-width: 100%; max-height: calc(100vh - 120p
   input[type=checkbox], input[type=radio] { width: 22px; height: 22px; }
   .be-tools .btn.small { min-width: 40px; }
 }
+
+/* ---- folded repeated coverage (News tab) ---- */
+.item-fold { list-style: none; }
+.item-fold > details { border: 1px dashed var(--line); border-radius: var(--radius); padding: 8px 12px; background: var(--panel); }
+.item-fold > details > summary { cursor: pointer; font-size: 14px; }
+.item-fold > details[open] > summary { margin-bottom: 8px; }
+.item-fold .items { margin: 0; padding: 0; }

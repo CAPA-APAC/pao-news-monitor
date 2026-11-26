@@ -2,6 +2,12 @@
 
 Plain-language log of what changed and why, for anyone who isn't reading the code. One entry per fix or feature, newest first. See the User Guide for how to use each thing; see `_bmad-output/.../addendum.md` for technical detail.
 
+## 2026-11-26 — News tab folds repeated coverage of one event
+- **A big event no longer buries an organisation's list.** WCOA 2026 in Seoul put about 15 articles under KICPA, and again under IFAC, in one week. When 5 or more articles in one organisation's list are about the same event, the best 3 stay in the list and the rest fold into one row, **"+12 more about WCOA"**, that opens when clicked.
+- **Nothing is deleted.** The organisation's item count still includes everything, the brief and the AI relevance check are unchanged, and **Fold repeated coverage** (in the filters) switches it off. Searching, and the bin, always show everything.
+- **What is never folded:** anything staff marked High or Medium, anything with a note, and leadership / contact change notices.
+- **How it decides what is "one event":** WCOA is built in (also by its full name and its Korean name). Any other capitalised name (4 to 8 capitals, for example MOSAIC) used in 5 or more headlines counts too. The organisation's own name, other organisations' names, and common acronyms such as IFRS, ESG or ASEAN never do.
+
 ## 2026-11-13 — Add a story: pick the days to show
 - **Adding a story to a brief no longer lists everything.** In the brief editor, **+ Add a story** now has a **News from** menu. It starts on **this brief's dates**, so a brief for 11 Nov shows 11 Nov news. You can switch to **Today**, **Yesterday**, **One day…** (pick any date) or **Any date**.
 - **Future-dated events no longer lead the list.** Items dated in the future, such as a conference listed for March 2028, now sort to the end instead of the top.

@@ -28,7 +28,7 @@
     return { type: h.get("type") || q.get("type") || "", error: h.get("error_description") || q.get("error_description") || "" };
   })();
   const state = { paos: [], items: [], health: [], lastRun: null, user: null, loadedSince: undefined, role: "team", perms: [], open: new Set(),
-    date: { preset: "30" }, cal: { month: null, pending: null, hover: null } };
+    date: { preset: "30" }, cal: { month: null, pending: null, hover: null }, openFolds: new Set() };
   let db = null;
 
   // ---------- data layer ----------
@@ -169,6 +169,7 @@
       sources: $$("input[name=src]:checked").map((i) => i.value).concat("_seen_pw"),
       kinds: $$("input[name=kind]:checked").map((i) => i.value).concat("_seen_cm"),
       baseline: $("#f-baseline").checked,
+      fold: $("#f-fold").checked,
       q: $("#f-search").value.trim().toLowerCase(),
     };
   }
@@ -188,6 +189,7 @@
     // "comment" is new: tick it for people whose saved filters predate it
     if (Array.isArray(f.kinds)) $$("input[name=kind]").forEach((i) => (i.checked = f.kinds.includes(i.value) || (i.value === "comment" && !f.kinds.includes("_seen_cm"))));
     $("#f-baseline").checked = !!f.baseline;
+    $("#f-fold").checked = f.fold !== false;   // on unless someone switched it off
   }
   // what an item is: saved by the collector, or guessed from its address for older items
   function kindOf(it) {
@@ -330,6 +332,7 @@
   function render() {
     const f = filters();
     const rng = dateRange(f);
+    foldOn = f.fold && !f.q && f.status !== "removed";   // searching and the bin always show everything
     const byPao = new Map(state.paos.map((p) => [p.id, []]));
     for (const it of state.items) if (byPao.has(it.pao_id) && visible(it, f, rng)) byPao.get(it.pao_id).push(it);
     for (const list of byPao.values()) list.sort((a, b) => (itemDate(b) || "").localeCompare(itemDate(a) || ""));
@@ -349,6 +352,20 @@
     updateMultiLabels();
     updateToggleAll();
     renderCalendar();
+  }
+
+  // Repeated coverage of one event (web/repeat-coverage.js): the best few stay in the list, the rest fold into one row.
+  let foldOn = true;
+  function itemsHtml(p, items) {
+    const RC = window.RepeatCoverage;
+    if (!foldOn || !RC) return items.map(card).join("");
+    const { shown, groups } = RC.fold(items, { paoAbbrs: state.paos.map((x) => x.abbr).filter(Boolean), ownName: `${p.abbr || ""} ${p.name || ""}`, kindOf });
+    return shown.map(card).join("") + groups.map((g) => {
+      const id = `${p.id}:${g.key}`;
+      return `<li class="item-fold"><details class="fold" data-fold="${esc(id)}"${state.openFolds.has(id) ? " open" : ""}>
+        <summary><b>+${g.items.length} more about ${esc(g.label)}</b> <span class="muted small">similar coverage, folded - click to see them</span></summary>
+        <ol class="items">${g.items.map(card).join("")}</ol></details></li>`;
+    }).join("");
   }
 
   // Each PAO is a collapsible row: the header shows health, what's left to review and how many items;
@@ -382,7 +399,7 @@
             ${can("add_items") ? `<button class="btn ghost small" data-add="${esc(p.id)}" type="button">+ Add item</button>` : ""}
           </div>
         </div>
-        ${items.length ? `<ol class="items">${items.map(card).join("")}</ol>` : `<p class="empty-note">Nothing found in this period.</p>`}
+        ${items.length ? `<ol class="items">${itemsHtml(p, items)}</ol>` : `<p class="empty-note">Nothing found in this period.</p>`}
       </div>
     </details>`;
   }
@@ -758,12 +775,13 @@
 
   function wire() {
     wireCalendar();
-    for (const el of ["#f-status", "#f-baseline"]) $(el).addEventListener("change", () => { saveFilters(); render(); });
+    for (const el of ["#f-status", "#f-baseline", "#f-fold"]) $(el).addEventListener("change", () => { saveFilters(); render(); });
     $$("input[name=src], input[name=kind]").forEach((i) => i.addEventListener("change", () => { saveFilters(); render(); }));
     let typing; $("#f-search").addEventListener("input", () => { clearTimeout(typing); typing = setTimeout(render, 200); });
     // remember which PAOs are open ('toggle' doesn't bubble, so listen while it travels down)
     $("#main").addEventListener("toggle", (e) => {
       const d = e.target;
+      if (d.matches?.("details.fold")) { d.open ? state.openFolds.add(d.dataset.fold) : state.openFolds.delete(d.dataset.fold); return; }
       if (!d.matches?.("details.pao")) return;
       d.open ? state.open.add(d.dataset.pao) : state.open.delete(d.dataset.pao);
       updateToggleAll();
