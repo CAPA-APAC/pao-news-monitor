@@ -2,6 +2,9 @@
 
 Plain-language log of what changed and why, for anyone who isn't reading the code. One entry per fix or feature, newest first. See the User Guide for how to use each thing; see `_bmad-output/.../addendum.md` for technical detail.
 
+## 2026-11-26 — The Standards tab is now called "Stakeholder Project Tracker"
+- Only the name changed: the tab, its page heading and the messages it shows. How it works, its permission ("Add items"), the database and the `#standards` link are unchanged.
+
 ## 2026-11-26 — News tab folds repeated coverage of one event
 - **A big event no longer buries an organisation's list.** WCOA 2026 in Seoul put about 15 articles under KICPA, and again under IFAC, in one week. When 5 or more articles in one organisation's list are about the same event, the best 3 stay in the list and the rest fold into one row, **"+12 more about WCOA"**, that opens when clicked.
 - **Nothing is deleted.** The organisation's item count still includes everything, the brief and the AI relevance check are unchanged, and **Fold repeated coverage** (in the filters) switches it off. Searching, and the bin, always show everything.

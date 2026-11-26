@@ -230,7 +230,7 @@
   let roleRows = [], rolePerms = {}, roleUse = {};
   const PERM_LABEL = {
     tag_items: ["Tag items", "Regional / country / PAO-specific / not relevant, category, notes, type"],
-    add_items: ["Add items", "+ Add item, Import, screenshots, Standards dates"],
+    add_items: ["Add items", "+ Add item, Import, screenshots, Project Tracker dates"],
     remove_items: ["Remove items", "Hide junk items everywhere (can be restored)"],
     edit_briefs: ["Edit briefs", "Change the brief text"],
     approve_briefs: ["Approve briefs", "Approve a brief or move it back to draft"],
