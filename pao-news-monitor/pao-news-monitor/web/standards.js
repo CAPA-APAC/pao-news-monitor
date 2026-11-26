@@ -1,4 +1,4 @@
-/* Standards tab - what the standard setters (IAASB, IESBA, IASB, ISSB, IPSASB ...) are working on, and when.
+/* Stakeholder Project Tracker (the Standards tab) - what the standard setters (IAASB, IESBA, IASB, ISSB, IPSASB ...) are working on, and when.
  *
  * Two views of the same data (supabase/update-23.sql: std_projects = a standard, std_events = its dates):
  *   Calendar      a month grid. A period (exposure draft + call for comments) is a bar; a meeting, an issue date or an
@@ -40,7 +40,7 @@
 
   // ---------- data ----------
   const missing = (e) => /does not exist|schema cache|relation|42P01|PGRST20/i.test(`${e?.code || ""} ${e?.message || ""}`);
-  const NEEDS_UPDATE = "The Standards tab needs a quick database update (supabase/update-23.sql) - ask your admin.";
+  const NEEDS_UPDATE = "The Stakeholder Project Tracker needs a quick database update (supabase/update-23.sql) - ask your admin.";
 
   async function load() {
     S.error = "";
@@ -60,7 +60,7 @@
         A.db.from("std_projects").select("*").order("title"),
         A.db.from("std_events").select("*").order("start_date").limit(5000)]);
       const err = pr.error || ev.error || pa.error;
-      if (err) { S.error = missing(err) ? NEEDS_UPDATE : `Couldn't load the Standards: ${err.message}`; S.projects = []; S.events = []; S.setters = pa.data || []; }
+      if (err) { S.error = missing(err) ? NEEDS_UPDATE : `Couldn't load the Project Tracker: ${err.message}`; S.projects = []; S.events = []; S.setters = pa.data || []; }
       else { S.projects = pr.data || []; S.events = ev.data || []; S.setters = pa.data || []; }
     }
     S.setters.sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
@@ -286,11 +286,11 @@
   }
 
   async function refresh(msg) {
-    try { await load(); } catch (e) { S.error = `Couldn't load the Standards: ${e.message}`; }
+    try { await load(); } catch (e) { S.error = `Couldn't load the Project Tracker: ${e.message}`; }
     render();
     if (msg) A.toast(msg);
   }
-  const fail = (e) => A.toast(missing(e) ? NEEDS_UPDATE : (/row-level|permission|denied/i.test(e.message) ? "Your role can't change the Standards. Ask an admin to tick 'Add items' for you." : `Couldn't save: ${e.message}`), true);
+  const fail = (e) => A.toast(missing(e) ? NEEDS_UPDATE : (/row-level|permission|denied/i.test(e.message) ? "Your role can't change the Project Tracker. Ask an admin to tick 'Add items' for you." : `Couldn't save: ${e.message}`), true);
 
   function wireDialogs() {
     $("#std-standard-form").addEventListener("submit", async (e) => {

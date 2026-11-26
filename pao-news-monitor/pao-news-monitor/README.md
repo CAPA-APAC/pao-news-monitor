@@ -53,9 +53,9 @@ Until then the two buttons show a message saying what is missing. Fine-grained t
 
 Setup: run `supabase/update-4.sql`, `update-5.sql`, `update-6.sql`, `update-7.sql`, `update-8.sql`, `update-9.sql`, `update-10.sql`, `update-11.sql`, `update-12.sql`, `update-13.sql`, `update-14.sql`, `update-15.sql`, `update-16.sql` and `update-17.sql` once.
 
-## Standards tab (standard-setter calendar)
+## Stakeholder Project Tracker (the Standards tab: standard-setter calendar)
 
-The **Standards** tab tracks what the standard setters (every organisation whose jurisdiction is "Standard Setters" in the member list: IAASB, IESBA, IASB, ISSB, IPSASB, IPAE) are working on. Run `supabase/update-23.sql` once (tables `std_projects`, `std_events`, `std_scanned`).
+The **Stakeholder Project Tracker** tab (internally "standards": the files and the `#standards` link keep that name) tracks what the standard setters (every organisation whose jurisdiction is "Standard Setters" in the member list: IAASB, IESBA, IASB, ISSB, IPSASB, IPAE) are working on. Run `supabase/update-23.sql` once (tables `std_projects`, `std_events`, `std_scanned`).
 
 - **Calendar** (default): periods (exposure draft / call for comments) are bars; meetings, issue and effective dates are small blocks, colour-coded by kind with an icon. **By standard**: each setter, then each standard with a progress line - four starting steps, one more step for every extra date.
 - **Adding:** people with the *Add items* permission use **+ Add standard** / **+ Add date**. The collection also reads each new email filed under a standard setter (`collector/standards.py`; PDF attachments are included, read with `pypdf`) and adds the dates the email states, marked *From email* (dashed outline) until someone clicks **Looks right** or edits it. It uses the "smart" AI chain, at most 20 emails per run, each email once. A month or quarter without a day is never turned into a date.
@@ -64,7 +64,7 @@ The **Standards** tab tracks what the standard setters (every organisation whose
 
 ## Roles and permissions
 Admins manage these on the **Admin** tab.
-- **Roles:** create a role (e.g. "Comms team") and tick what it may do: *Tag items*, *Add items* (incl. Import, screenshots and the Standards tab), *Edit briefs*, *Approve briefs*, *Send briefs*, *Mailing list*, *Members*. **Admin** always has everything and can't be changed. **Team** (tag, add, edit briefs) and **Viewer** (read and export only) are ready-made and editable. A role can be deleted once nobody has it.
+- **Roles:** create a role (e.g. "Comms team") and tick what it may do: *Tag items*, *Add items* (incl. Import, screenshots and the Stakeholder Project Tracker), *Edit briefs*, *Approve briefs*, *Send briefs*, *Mailing list*, *Members*. **Admin** always has everything and can't be changed. **Team** (tag, add, edit briefs) and **Viewer** (read and export only) are ready-made and editable. A role can be deleted once nobody has it.
 - **People:** type an email, pick a role, **Give access**; they then click **First time here** on the tracker to create their password. Change anyone's role, or pick **No access**. **Delete** removes someone from the list (needs `supabase/update-16.sql`): someone who never signed up disappears completely; someone who already signed up stays listed as *Access removed* until you also delete their login in Supabase → **Authentication → Users**. You can't delete yourself, and there must always be at least one admin.
 - Only admins can manage people and roles. People see only the buttons and Admin-tab sections their role allows, and the database enforces the same rules.
 
