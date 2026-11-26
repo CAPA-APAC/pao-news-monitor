@@ -2,6 +2,11 @@
 
 Plain-language log of what changed and why, for anyone who isn't reading the code. One entry per fix or feature, newest first. See the User Guide for how to use each thing; see `_bmad-output/.../addendum.md` for technical detail.
 
+## 2026-11-26 — Stakeholder Project Tracker: each standard folds
+- In **By standard**, every standard now shows as one line: its name, where it stands, a row of dots (one per step, filled when done) and the **+ Add date / Edit** buttons. Click it to open the full progress line; click again to fold it. Everything starts folded.
+- **Expand all / Collapse all** sit above the list. What you open stays open while you switch between Calendar and By standard. A standard setter's group can be folded the same way.
+- Also fixed: the page could scroll sideways on a phone.
+
 ## 2026-11-26 — The Standards tab is now called "Stakeholder Project Tracker"
 - Only the name changed: the tab, its page heading and the messages it shows. How it works, its permission ("Add items"), the database and the `#standards` link are unchanged.
 
