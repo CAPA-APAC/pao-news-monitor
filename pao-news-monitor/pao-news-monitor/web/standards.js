@@ -36,7 +36,8 @@
 
   const now = new Date();
   const S = { projects: [], events: [], setters: [], error: "", loaded: false, view: "calendar",
-    month: { y: now.getFullYear(), m: now.getMonth() }, paos: new Set(), project: "", types: new Set(), demo: null };
+    month: { y: now.getFullYear(), m: now.getMonth() }, paos: new Set(), project: "", types: new Set(), demo: null,
+    openCards: new Set(), closedSetters: new Set() };   // By standard: which standards are expanded (all start folded), which setters were folded by hand
 
   // ---------- data ----------
   const missing = (e) => /does not exist|schema cache|relation|42P01|PGRST20/i.test(`${e?.code || ""} ${e?.message || ""}`);
@@ -178,24 +179,30 @@
     const t = today();
     const box = $("#std-standards");
     const groups = S.setters.filter((s) => (!S.paos.size || S.paos.has(s.id)) && (s.active !== false || S.projects.some((p) => p.pao_id === s.id)));
-    box.innerHTML = groups.map((s) => {
+    const shown = groups.flatMap((s) => S.projects.filter((p) => p.pao_id === s.id && (!S.project || p.id === S.project)));
+    box.innerHTML = (shown.length > 1 ? `<div class="std-bulk"><button type="button" class="btn small" data-fold-all="open">Expand all</button><button type="button" class="btn small" data-fold-all="close">Collapse all</button>
+      <span class="muted small">${shown.length} standards. Open one to see its progress line.</span></div>` : "") + groups.map((s) => {
       let list = S.projects.filter((p) => p.pao_id === s.id && (!S.project || p.id === S.project));
       const rank = (p) => (p.status === "active" ? 0 : 1);
       list = list.sort((a, b) => rank(a) - rank(b) || a.title.localeCompare(b.title));
       const open = list.filter((p) => L.summary(eventsOf(p.id), t).tone === "open").length;
       const cards = list.map((p) => {
         const sum = L.summary(eventsOf(p.id), t), st = STATUS_CHIP[p.status];
-        return `<article class="panel std-card" data-project="${esc(p.id)}">
-          <div class="std-card-head">
-            <div><h4>${safeUrl(p.url) ? `<a href="${esc(p.url)}" target="_blank" rel="noopener">${esc(p.title)}</a>` : esc(p.title)}</h4>
-              <p class="std-sum tone-${sum.tone}">${esc(sum.text)}</p>
-              ${p.description ? `<p class="muted small">${esc(p.description)}</p>` : ""}</div>
-            <div class="std-card-tools">${st ? `<span class="chip ${st[1]}">${st[0]}</span>` : ""}${p.source === "email" ? `<span class="chip" title="Found in an email by the daily collection">From email</span>` : ""}
-              ${canEdit() ? `<button type="button" class="btn small" data-add-for="${esc(p.id)}">+ Add date</button><button type="button" class="btn ghost small" data-edit-standard="${esc(p.id)}">Edit</button>` : ""}</div>
-          </div>
-          <div class="table-wrap std-stage-wrap">${stageLine(p)}</div></article>`;
+        const nodes = L.stageLine(eventsOf(p.id), t), done = nodes.filter((n) => n.kind === "event" && n.state === "done").length;
+        // folded: the name, where it stands, a row of dots (one per step, filled when done) and the buttons; open: the full progress line
+        return `<article class="panel std-card" data-project="${esc(p.id)}"><details class="std-fold" data-card="${esc(p.id)}"${S.openCards.has(p.id) ? " open" : ""}>
+          <summary class="std-card-head">
+            <span class="std-card-main"><h4>${safeUrl(p.url) ? `<a href="${esc(p.url)}" target="_blank" rel="noopener">${esc(p.title)}</a>` : esc(p.title)}</h4>
+              <span class="std-sum tone-${sum.tone}">${esc(sum.text)}</span>
+              ${p.description ? `<span class="std-desc muted small">${esc(p.description)}</span>` : ""}</span>
+            <span class="std-mini" role="img" aria-label="${done} of ${nodes.length} steps done">${nodes.map((n) => `<i class="s-${n.state} t-${n.type}"></i>`).join("")}</span>
+            <span class="std-card-tools">${st ? `<span class="chip ${st[1]}">${st[0]}</span>` : ""}${p.source === "email" ? `<span class="chip" title="Found in an email by the daily collection">From email</span>` : ""}
+              ${canEdit() ? `<button type="button" class="btn small" data-add-for="${esc(p.id)}">+ Add date</button><button type="button" class="btn ghost small" data-edit-standard="${esc(p.id)}">Edit</button>` : ""}</span>
+          </summary>
+          ${p.description ? `<p class="muted small std-desc-full">${esc(p.description)}</p>` : ""}
+          <div class="table-wrap std-stage-wrap">${stageLine(p)}</div></details></article>`;
       }).join("");
-      return `<details class="std-pao" ${list.length ? "open" : ""}><summary><h3>${esc(s.abbr || s.id)} <span class="muted small">${esc(s.name || "")}</span></h3>
+      return `<details class="std-pao" data-setter="${esc(s.id)}"${list.length && !S.closedSetters.has(s.id) ? " open" : ""}><summary><h3>${esc(s.abbr || s.id)} <span class="muted small">${esc(s.name || "")}</span></h3>
         <span class="chip">${list.length} standard${list.length === 1 ? "" : "s"}</span>${open ? `<span class="chip ok">${open} open for comment</span>` : ""}</summary>
         ${cards || `<p class="muted small std-empty">Nothing tracked yet${canEdit() ? ` - use <b>+ Add standard</b>` : ""}.</p>`}</details>`;
     }).join("") || `<p class="muted">No standard setters to show.</p>`;
@@ -386,8 +393,19 @@
       if (b.dataset.ev) return detail(b.dataset.ev);
       if (b.dataset.day) return dayList(b.dataset.day);
       if (b.dataset.editStandard) return standardDialog(b.dataset.editStandard);
+      if (b.dataset.foldAll) {
+        S.openCards = new Set(b.dataset.foldAll === "open" ? S.projects.map((p) => p.id) : []);
+        S.closedSetters = new Set();
+        return renderStandards();
+      }
       if (b.dataset.addFor) return dateDialog({ project: b.dataset.addFor, type: b.dataset.addType });
     });
+    // remember what was opened or folded by hand ('toggle' doesn't bubble, so listen while it travels down)
+    $("#std-standards").addEventListener("toggle", (e) => {
+      const d = e.target;
+      if (d.matches?.("details.std-fold")) d.open ? S.openCards.add(d.dataset.card) : S.openCards.delete(d.dataset.card);
+      else if (d.matches?.("details.std-pao")) d.open ? S.closedSetters.delete(d.dataset.setter) : S.closedSetters.add(d.dataset.setter);
+    }, true);
     wireDialogs();
   }
   wire();
