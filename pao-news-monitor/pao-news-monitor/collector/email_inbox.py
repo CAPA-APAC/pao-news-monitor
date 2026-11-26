@@ -71,6 +71,35 @@ def body_text(msg):
     return ""
 
 
+PDF_PAGES = 15            # pages read from one PDF attachment
+PDF_CHARS = 12000         # text kept from all of an email's PDFs
+
+
+def attachment_text(msg, limit=PDF_CHARS):
+    """Text of the PDF attachments (agendas, work plans, exposure drafts sent as files), each under a
+    "[Attachment: name.pdf]" line. Empty when there are none, or pypdf isn't installed, or a file can't be read."""
+    try:
+        from io import BytesIO
+
+        from pypdf import PdfReader
+    except ImportError:
+        return ""
+    out = []
+    for part in (msg.walk() if msg.is_multipart() else []):
+        name = _decode(part.get_filename() or "")
+        if not (part.get_content_type() == "application/pdf" or name.lower().endswith(".pdf")):
+            continue
+        try:
+            reader = PdfReader(BytesIO(part.get_payload(decode=True) or b""))
+            text = "\n".join((page.extract_text() or "") for page in reader.pages[:PDF_PAGES])
+        except Exception as e:  # noqa: BLE001  (encrypted, damaged, scanned images ...)
+            log.info("could not read attachment %s: %s", name, type(e).__name__)
+            continue
+        if text.strip():
+            out.append(f"[Attachment: {name or 'file.pdf'}]\n{clean(text)}")
+    return "\n\n".join(out)[:limit]
+
+
 def _mentions(p, hay):
     n = hay.lower().count(p.name.lower()) if p.name and len(p.name) > 8 else 0
     if p.abbr and len(p.abbr) >= 3:
@@ -190,10 +219,15 @@ def parse_message(raw, paos, own_address="", resolve=None):
     items = []
     for p in targets:
         pid = p.id if p else UNMATCHED_ID
+        content = text[:20000]
+        if p and p.jurisdiction == "Standard Setters":   # their agendas and work plans often come as PDFs: the Standards tab reads them
+            files = attachment_text(msg)
+            if files:
+                content = text[:8000] + "\n\n" + files
         items.append(Item(
             id=make_id(pid, SOURCE, msgid or f"{sender}|{subject}|{date}"), pao_id=pid, source=SOURCE,
             title=subject, url=link, published_at=iso(date), snippet=text[:600],
-            content=text[:20000], source_name=f"{from_name} <{sender}>".strip(),
+            content=content, source_name=f"{from_name} <{sender}>".strip(),
             language=p.language if p else ""))
     return items
 
