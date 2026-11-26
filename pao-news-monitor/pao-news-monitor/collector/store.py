@@ -200,6 +200,68 @@ class SupabaseStore:
     def log_ai_usage(self, rows):
         self._req("POST", "/ai_usage", json=rows, headers={"Prefer": "return=minimal"})
 
+    # ---- Standards tab (supabase/update-23.sql) ----
+    def standards_ready(self):
+        try:
+            for t in ("std_projects", "std_events", "std_scanned"):
+                self._req("GET", f"/{t}?select=*&limit=1")
+            return True
+        except RuntimeError:
+            return False
+
+    def std_projects(self):
+        return self._req("GET", "/std_projects?select=id,pao_id,title,status").json()
+
+    def std_events(self):
+        rows = []
+        for start in range(0, 20000, 1000):
+            got = self._req("GET", "/std_events?select=id,project_id,type,start_date,end_date,source&order=id",
+                            headers={"Range": f"{start}-{start + 999}"}).json()
+            rows += got
+            if len(got) < 1000:
+                break
+        return rows
+
+    def std_emails_to_scan(self, since_iso, pao_ids, limit):
+        """Emails filed under a standard setter that haven't been read for dates yet, oldest first."""
+        since_iso = quote(since_iso.replace("+00:00", "Z"), safe=":-.TZ")
+        pids = ",".join(quote(p, safe="-_") for p in pao_ids)
+        rows = self._req("GET", "/items?select=id,pao_id,title,url,published_at,first_seen_at,content,snippet"
+                                f"&source=eq.email&removed_at=is.null&pao_id=in.({pids})&first_seen_at=gte.{since_iso}"
+                                "&order=first_seen_at.asc&limit=400").json()
+        done = set()
+        ids = [r["id"] for r in rows]
+        for i in range(0, len(ids), 150):
+            got = self._req("GET", f"/std_scanned?select=item_id&item_id=in.({','.join(ids[i:i + 150])})").json()
+            done |= {g["item_id"] for g in got}
+        return [r for r in rows if r["id"] not in done][:limit]
+
+    def std_add_project(self, row):
+        self._req("POST", "/std_projects", json=row, headers={"Prefer": "return=minimal"})
+
+    def std_add_events(self, rows):
+        """Insert dates; returns the saved rows (with ids). A date that turns out to exist already is skipped."""
+        try:
+            return self._req("POST", "/std_events", json=rows, headers={"Prefer": "return=representation"}).json()
+        except RuntimeError as e:
+            if "duplicate" not in str(e).lower() and "23505" not in str(e):
+                raise
+        saved = []
+        for r in rows:
+            try:
+                saved += self._req("POST", "/std_events", json=r, headers={"Prefer": "return=representation"}).json()
+            except RuntimeError as e:
+                if "duplicate" not in str(e).lower() and "23505" not in str(e):
+                    raise
+        return saved
+
+    def std_update_event(self, event_id, patch):
+        self._req("PATCH", f"/std_events?id=eq.{int(event_id)}", json=patch, headers={"Prefer": "return=minimal"})
+
+    def std_mark_scanned(self, rows):
+        self._req("POST", "/std_scanned?on_conflict=item_id", json=rows,
+                  headers={"Prefer": "resolution=merge-duplicates,return=minimal"})
+
 
 class JsonStore:
     """Dry-run store: everything goes to data/local.json so you can look at it."""
@@ -321,6 +383,45 @@ class JsonStore:
 
     def log_ai_usage(self, rows):
         self.data.setdefault("ai_usage", []).extend(rows)
+        self._save()
+
+    # ---- Standards tab ----
+    def standards_ready(self):
+        return True
+
+    def std_projects(self):
+        return [dict(p) for p in self.data.get("std_projects", [])]
+
+    def std_events(self):
+        return [dict(e) for e in self.data.get("std_events", [])]
+
+    def std_emails_to_scan(self, since_iso, pao_ids, limit):
+        done = set(self.data.get("std_scanned", {}))
+        rows = [dict(i) for i in self.data["items"].values() if i.get("source") == "email" and not i.get("removed_at")
+                and i.get("pao_id") in pao_ids and i["id"] not in done and (i.get("first_seen_at") or "") >= since_iso]
+        return sorted(rows, key=lambda r: r.get("first_seen_at") or "")[:limit]
+
+    def std_add_project(self, row):
+        self.data.setdefault("std_projects", []).append(dict(row))
+        self._save()
+
+    def std_add_events(self, rows):
+        saved = []
+        for r in rows:
+            n = max([e["id"] for e in self.data.get("std_events", [])] or [0]) + 1
+            self.data.setdefault("std_events", []).append({**r, "id": n})
+            saved.append({**r, "id": n})
+        self._save()
+        return saved
+
+    def std_update_event(self, event_id, patch):
+        for e in self.data.get("std_events", []):
+            if e["id"] == event_id:
+                e.update(patch)
+        self._save()
+
+    def std_mark_scanned(self, rows):
+        self.data.setdefault("std_scanned", {}).update({r["item_id"]: r["events"] for r in rows})
         self._save()
 
 
