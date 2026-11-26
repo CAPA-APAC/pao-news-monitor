@@ -576,6 +576,13 @@ dialog.zoom img { display: block; max-width: 100%; max-height: calc(100vh - 120p
   .be-tools .btn.small { min-width: 40px; }
 }
 
+/* ---- folded repeated coverage (News tab) ---- */
+.item-fold { list-style: none; }
+.item-fold > details { border: 1px dashed var(--line); border-radius: var(--radius); padding: 8px 12px; background: var(--panel); }
+.item-fold > details > summary { cursor: pointer; font-size: 14px; }
+.item-fold > details[open] > summary { margin-bottom: 8px; }
+.item-fold .items { margin: 0; padding: 0; }
+
 /* ---- Standards tab ----
    One colour per kind of date (the same on the calendar, the legend and the progress line). --tc = the strong colour
    (icons, borders), blocks use a pale tint of it so the text stays the normal ink colour. The kind is also shown by an icon. */

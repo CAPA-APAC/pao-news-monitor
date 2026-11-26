@@ -2,6 +2,12 @@
 
 Plain-language log of what changed and why, for anyone who isn't reading the code. One entry per fix or feature, newest first. See the User Guide for how to use each thing; see `_bmad-output/.../addendum.md` for technical detail.
 
+## 2026-11-26 — News tab folds repeated coverage of one event
+- **A big event no longer buries an organisation's list.** WCOA 2026 in Seoul put about 15 articles under KICPA, and again under IFAC, in one week. When 5 or more articles in one organisation's list are about the same event, the best 3 stay in the list and the rest fold into one row, **"+12 more about WCOA"**, that opens when clicked.
+- **Nothing is deleted.** The organisation's item count still includes everything, the brief and the AI relevance check are unchanged, and **Fold repeated coverage** (in the filters) switches it off. Searching, and the bin, always show everything.
+- **What is never folded:** anything staff marked High or Medium, anything with a note, and leadership / contact change notices.
+- **How it decides what is "one event":** WCOA is built in (also by its full name and its Korean name). Any other capitalised name (4 to 8 capitals, for example MOSAIC) used in 5 or more headlines counts too. The organisation's own name, other organisations' names, and common acronyms such as IFRS, ESG or ASEAN never do.
+
 ## 2026-11-26 — New Standards tab: a calendar of what the standard setters are doing
 - **A new Standards tab** follows IAASB, IESBA, IASB, ISSB, IPSASB (and the other standard setters in the member list). It opens on a **calendar**: a period such as an exposure draft's comment window is a **bar** from its first to its last day; a meeting, the day a standard is issued, or an effective date is a **small block**. Each kind has its own colour and its own small icon, and you can switch kinds on and off or narrow to one standard setter or one standard.
 - **By standard** lists each standard setter, then each of its standards, with a **progress line** like a parcel tracker. Every standard starts with four steps (planning / work plan, exposure draft and call for comments, post-comments meetings, implementation). **Every extra date adds a step by itself**: a second call for comments, a third meeting. Steps with no date yet are shown empty, and clicking one adds the date.
