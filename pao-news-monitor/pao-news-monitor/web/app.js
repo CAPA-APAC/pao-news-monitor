@@ -28,7 +28,7 @@
     return { type: h.get("type") || q.get("type") || "", error: h.get("error_description") || q.get("error_description") || "" };
   })();
   const state = { paos: [], items: [], health: [], lastRun: null, user: null, loadedSince: undefined, role: "team", perms: [], open: new Set(),
-    date: { preset: "30" }, cal: { month: null, pending: null, hover: null }, openFolds: new Set() };
+    date: { preset: "30" }, cal: { month: null, pending: null, hover: null }, openFolds: new Set(), selPao: "", selItem: "", showEmpty: false, pane: "feed" };
   let db = null;
 
   // ---------- data layer ----------
@@ -329,79 +329,159 @@
   }
 
   // ---------- rendering ----------
+  // The News tab is a three-pane workspace, like a mail app: organisations | stories | the story you picked.
+  // Rating a story moves you on to the next one still to review. Everything that can be done to a story (rate,
+  // category, notes, move, remove, translate, edit title) lives in the reader pane and is handled in wire().
   function render() {
     const f = filters();
     const rng = dateRange(f);
     foldOn = f.fold && !f.q && f.status !== "removed";   // searching and the bin always show everything
     const byPao = new Map(state.paos.map((p) => [p.id, []]));
     for (const it of state.items) if (byPao.has(it.pao_id) && visible(it, f, rng)) byPao.get(it.pao_id).push(it);
-    for (const list of byPao.values()) list.sort((a, b) => (itemDate(b) || "").localeCompare(itemDate(a) || ""));
+    const newest = (a, b) => (itemDate(b) || "").localeCompare(itemDate(a) || "");
+    for (const list of byPao.values()) list.sort(newest);
+    paoById = new Map(state.paos.map((p) => [p.id, p]));
 
-    const groups = GROUP_ORDER.map((g) => ({ g, paos: state.paos.filter((p) => (p.grp || "Member") === g) }))
-      .filter((x) => x.paos.length);
+    const groups = GROUP_ORDER.map((g) => ({ g, paos: state.paos.filter((p) => (p.grp || "Member") === g) })).filter((x) => x.paos.length);
+    if (state.selPao && !paoById.has(state.selPao)) state.selPao = "";
+    const sel = state.selPao ? paoById.get(state.selPao) : null;
+    const pool = sel ? byPao.get(sel.id) : [...byPao.values()].flat().sort(newest);
+    const cur = pool.find((i) => i.id === state.selItem) || null;
+    if (!cur) { state.selItem = ""; if (state.pane === "reader") state.pane = "feed"; }
 
-    // main sections - every PAO, even with nothing found
-    const total = [...byPao.values()].reduce((n, l) => n + l.length, 0);
-    const withNews = [...byPao.values()].filter((l) => l.length).length;
     const cats = [...new Set((CFG.CATEGORIES || []).concat(state.items.map((i) => i.category).filter(Boolean)))];
-    $("#main").innerHTML = `<datalist id="cats">${cats.map((c) => `<option value="${esc(c)}">`).join("")}</datalist>` +
-      `<p class="summary">${total} item${total === 1 ? "" : "s"} across ${withNews} of ${state.paos.length} organisations`
-        + (f.status === "removed" && total && can("remove_items") ? ` <button class="btn small danger" type="button" data-forever-all>Delete all ${total} removed for good</button>` : "")
-        + `</p>` +
-      groups.map(({ g, paos }) => `<h2 class="group-title">${esc(GROUP_LABEL[g] || g)}</h2>` + paos.map((p) => section(p, byPao.get(p.id), !!f.q)).join("")).join("");
+    const keep = { nav: $(".src-nav")?.scrollTop || 0, feed: $(".feed-list")?.scrollTop || 0, reader: state.lastShown === state.selItem ? $(".reader")?.scrollTop || 0 : 0 };
+    const focused = document.activeElement?.closest?.("#main") ? document.activeElement.dataset?.pick : null;
+
+    const main = $("#main");
+    main.dataset.pane = state.pane;
+    main.innerHTML = `<datalist id="cats">${cats.map((c) => `<option value="${esc(c)}">`).join("")}</datalist>`
+      + navHtml(groups, byPao, pool.length) + feedHtml(sel, pool, byPao) + readerHtml(cur, pool);
+    state.lastShown = state.selItem;
+    if ($(".src-nav")) $(".src-nav").scrollTop = keep.nav;
+    if ($(".feed-list")) $(".feed-list").scrollTop = keep.feed;
+    if ($(".reader")) $(".reader").scrollTop = keep.reader;
+    $(`#main .row[aria-current="true"]`)?.scrollIntoView({ block: "nearest" });
+    if (focused) $(`#main [data-pick="${CSS.escape(focused)}"]`)?.focus({ preventScroll: true });
     updateMultiLabels();
-    updateToggleAll();
     renderCalendar();
+  }
+
+  let paoById = new Map();
+  const unreviewed = (list) => list.filter((i) => !i.relevance).length;
+
+  // left pane: only organisations with stories are listed (the rest fold into one link), each with how many are still to review
+  function navHtml(groups, byPao) {
+    const all = [...byPao.values()].flat();
+    let hidden = 0;
+    const row = (p) => {
+      const items = byPao.get(p.id), unrev = unreviewed(items);
+      const lvl = p.id === "_unmatched_email" ? "none" : worstLevel(healthFor(p.id));
+      return `<button type="button" class="src-row" data-src="${esc(p.id)}"${state.selPao === p.id ? ' aria-current="true"' : ""} title="${esc(p.name)}${lvl === "error" ? " - a source failed" : lvl === "warn" ? " - a source needs a look" : ""}">
+        <span class="dot ${lvl}" aria-hidden="true"></span><span class="src-name">${esc(p.abbr && p.abbr !== p.name ? p.abbr : p.name)}</span>
+        ${unrev ? `<span class="src-count unrev" title="${unrev} to review">${unrev}</span>` : items.length ? `<span class="src-count">${items.length}</span>` : ""}</button>`;
+    };
+    const lists = groups.map(({ g, paos }) => {
+      const shown = paos.filter((p) => byPao.get(p.id).length || state.showEmpty || p.id === state.selPao);
+      hidden += paos.length - shown.length;
+      return shown.length ? `<h3 class="src-group">${esc(GROUP_LABEL[g] || g)}</h3>${shown.map(row).join("")}` : "";
+    }).join("");
+    const unrevAll = unreviewed(all);
+    return `<nav class="src-nav" aria-label="Organisations">
+      <button type="button" class="src-row src-all" data-src=""${state.selPao === "" ? ' aria-current="true"' : ""}><span class="src-name">All organisations</span>
+        ${unrevAll ? `<span class="src-count unrev" title="${unrevAll} to review">${unrevAll}</span>` : `<span class="src-count">${all.length}</span>`}</button>
+      ${lists}
+      ${hidden || state.showEmpty ? `<button type="button" class="link small src-empty" data-src-empty>${state.showEmpty ? "Hide organisations with nothing found" : `Show ${hidden} with nothing found`}</button>` : ""}
+    </nav>`;
+  }
+
+  // middle pane: the stories, newest first. Each row says how it was rated in words as well as by its colour bar.
+  function rowHtml(it, showOrg) {
+    const lv = eff(it) || "", p = paoById.get(it.pao_id);
+    const st = it.relevance ? RELEVANCE_LABEL[it.relevance] : it.ai_relevance ? `AI suggests ${RELEVANCE_LABEL[it.ai_relevance]}` : "To review";
+    return `<li><button type="button" class="row ${lv}${it.relevance ? "" : " unrev"}${!it.relevance && it.ai_relevance ? " ai-only" : ""}" data-pick="${esc(it.id)}"${it.id === state.selItem ? ' aria-current="true"' : ""}>
+      <span class="row-meta">${showOrg && p ? `<b>${esc(p.abbr || p.name)}</b> · ` : ""}${esc(SOURCE_LABEL[it.source] || it.source)}${kindOf(it) !== "news" ? ` · ${esc(KIND_LABEL[kindOf(it)] || kindOf(it))}` : ""}${itemDate(it) ? ` · ${fmtDate(itemDate(it))}` : ""}</span>
+      <span class="row-title">${esc(shownTitle(it))}</span>
+      <span class="row-state">${esc(st)}</span></button></li>`;
   }
 
   // Repeated coverage of one event (web/repeat-coverage.js): the best few stay in the list, the rest fold into one row.
   let foldOn = true;
-  function itemsHtml(p, items) {
-    const RC = window.RepeatCoverage;
-    if (!foldOn || !RC) return items.map(card).join("");
-    const { shown, groups } = RC.fold(items, { paoAbbrs: state.paos.map((x) => x.abbr).filter(Boolean), ownName: `${p.abbr || ""} ${p.name || ""}`, kindOf });
-    return shown.map(card).join("") + groups.map((g) => {
-      const id = `${p.id}:${g.key}`;
-      return `<li class="item-fold"><details class="fold" data-fold="${esc(id)}"${state.openFolds.has(id) ? " open" : ""}>
-        <summary><b>+${g.items.length} more about ${esc(g.label)}</b> <span class="muted small">similar coverage, folded - click to see them</span></summary>
-        <ol class="items">${g.items.map(card).join("")}</ol></details></li>`;
-    }).join("");
+  function feedRows(sel, pool) {
+    const RC = window.RepeatCoverage, showOrg = !sel;
+    const byP = new Map();
+    for (const it of pool) { if (!byP.has(it.pao_id)) byP.set(it.pao_id, []); byP.get(it.pao_id).push(it); }
+    const entries = [];
+    for (const [pid, items] of byP) {
+      const p = paoById.get(pid);
+      let shown = items, folded = [];
+      if (foldOn && RC) ({ shown, groups: folded } = RC.fold(items, { paoAbbrs: state.paos.map((x) => x.abbr).filter(Boolean), ownName: `${p.abbr || ""} ${p.name || ""}`, kindOf }));
+      for (const it of shown) entries.push({ d: itemDate(it) || "", html: rowHtml(it, showOrg) });
+      for (const g of folded) {
+        const id = `${pid}:${g.key}`;
+        const open = state.openFolds.has(id) || g.items.some((i) => i.id === state.selItem);
+        entries.push({ d: g.items.map(itemDate).filter(Boolean).sort().pop() || "", html: `<li class="item-fold"><details class="fold" data-fold="${esc(id)}"${open ? " open" : ""}>
+          <summary><b>+${g.items.length} more about ${esc(g.label)}</b>${showOrg ? ` <span class="muted small">${esc(p.abbr || p.name)}</span>` : ""}</summary>
+          <ul class="rows">${g.items.map((i) => rowHtml(i, showOrg)).join("")}</ul></details></li>` });
+      }
+    }
+    return entries.sort((a, b) => b.d.localeCompare(a.d)).map((e) => e.html).join("");
   }
 
-  // Each PAO is a collapsible row: the header shows health, what's left to review and how many items;
-  // click it to see the items. Which ones are open is remembered across re-renders (tagging, filters).
-  // While searching, every PAO with a match opens so results aren't hidden.
-  function section(p, items, searching) {
-    const isInbox = p.id === "_unmatched_email";
-    const hs = isInbox ? [] : healthFor(p.id);
-    const lvl = isInbox ? "none" : worstLevel(hs);
-    const unrev = items.filter((i) => !i.relevance).length;
-    const open = state.open.has(p.id) || (searching && items.length > 0);
-    const searchName = encodeURIComponent(p.name);
-    return `<details class="pao" id="pao-${esc(p.id)}" data-pao="${esc(p.id)}"${open ? " open" : ""}>
-      <summary class="pao-head">
-        <span class="dot ${lvl}" title="${lvl === "error" ? "A source failed - open for details" : lvl === "warn" ? "A source needs a look - open for details" : lvl === "ok" ? "All sources fine" : ""}"></span>
-        <span class="pao-title">
-          <h3>${p.abbr && p.abbr !== p.name ? `${esc(p.abbr)}<span class="pao-name">${esc(p.name)}</span>` : esc(p.name)}</h3>
-          ${p.jurisdiction ? `<span class="muted small">${esc(p.jurisdiction)}</span>` : ""}
-        </span>
-        <span class="pao-counts">${items.length
-          ? `${unrev ? `<span class="count unrev" title="Not yet tagged">${unrev} to review</span>` : ""}<span class="count">${items.length} item${items.length === 1 ? "" : "s"}</span>`
-          : `<span class="muted small">Nothing found</span>`}</span>
-        <svg class="chev" aria-hidden="true" viewBox="0 0 24 24" width="18" height="18"><path d="m6 9 6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </summary>
-      <div class="pao-body">
-        <div class="pao-meta">
-          <p class="muted small">${p.website ? `<a href="${esc(p.website)}" target="_blank" rel="noopener">${esc(p.website.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, ""))}</a>` : ""}${p.notes ? `${p.website ? " · " : ""}${esc(p.notes)}` : ""}</p>
+  function feedHtml(sel, pool, byPao) {
+    const unrev = unreviewed(pool), n = pool.length, f = filters();
+    const withNews = [...byPao.values()].filter((l) => l.length).length;
+    const lvl = sel && sel.id !== "_unmatched_email" ? worstLevel(healthFor(sel.id)) : "none";
+    const head = sel
+      ? `<header class="feed-head"><button type="button" class="pane-back" data-goto="sources">‹ Organisations</button>
+          <h2>${esc(sel.abbr && sel.abbr !== sel.name ? sel.abbr : sel.name)}${sel.abbr && sel.abbr !== sel.name ? `<span class="pao-name">${esc(sel.name)}</span>` : ""}</h2>
+          <p class="muted small">${[sel.jurisdiction ? esc(sel.jurisdiction) : "", sel.website ? `<a href="${esc(sel.website)}" target="_blank" rel="noopener">${esc(sel.website.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, ""))}</a>` : "", sel.notes ? esc(sel.notes) : ""].filter(Boolean).join(" · ")}</p>
+          ${lvl === "error" || lvl === "warn" ? `<p class="small src-warn">${lvl === "error" ? "A source failed" : "A source needs a look"} - see the Status tab.</p>` : ""}
           <div class="pao-tools">
-            ${isInbox ? "" : `<a class="btn ghost small" target="_blank" rel="noopener" title="Check LinkedIn by hand" href="https://www.linkedin.com/search/results/content/?keywords=${searchName}&sortBy=%22date_posted%22">LinkedIn</a>`}
-            ${p.facebook ? `<a class="btn ghost small" target="_blank" rel="noopener" title="Check their Facebook page by hand" href="${esc(p.facebook)}">Facebook</a>` : ""}
-            ${can("add_items") ? `<button class="btn ghost small" data-add="${esc(p.id)}" type="button">+ Add item</button>` : ""}
-          </div>
-        </div>
-        ${items.length ? `<ol class="items">${itemsHtml(p, items)}</ol>` : `<p class="empty-note">Nothing found in this period.</p>`}
-      </div>
-    </details>`;
+            ${sel.id === "_unmatched_email" ? "" : `<a class="btn ghost small" target="_blank" rel="noopener" title="Check LinkedIn by hand" href="https://www.linkedin.com/search/results/content/?keywords=${encodeURIComponent(sel.name)}&sortBy=%22date_posted%22">LinkedIn</a>`}
+            ${sel.facebook ? `<a class="btn ghost small" target="_blank" rel="noopener" title="Check their Facebook page by hand" href="${esc(sel.facebook)}">Facebook</a>` : ""}
+            ${can("add_items") ? `<button class="btn ghost small" data-add="${esc(sel.id)}" type="button">+ Add item</button>` : ""}
+          </div></header>`
+      : `<header class="feed-head"><button type="button" class="pane-back" data-goto="sources">‹ Organisations</button><h2>All organisations</h2></header>`;
+    const summary = `<p class="feed-summary small muted">${unrev ? `<b>${unrev} to review</b> · ` : ""}${n} ${n === 1 ? "story" : "stories"}${sel ? "" : ` across ${withNews} of ${state.paos.length} organisations`}`
+      + (f.status === "removed" && n && can("remove_items") ? ` <button class="btn small danger" type="button" data-forever-all>Delete all ${n} removed for good</button>` : "") + `</p>`;
+    return `<section class="feed" aria-label="Stories">${head}${summary}
+      ${n ? `<ul class="rows feed-list">${feedRows(sel, pool)}</ul>` : `<div class="feed-list"><p class="empty-note">Nothing found in this period.</p></div>`}</section>`;
+  }
+
+  // right pane: the story with everything you can do to it (the same card as before, bigger)
+  function readerHtml(cur, pool) {
+    const keys = can("tag_items") ? `<p class="keys muted small"><kbd>J</kbd> <kbd>K</kbd> next / previous · <kbd>1</kbd> High <kbd>2</kbd> Medium <kbd>3</kbd> Low <kbd>4</kbd> No relevance · <kbd>O</kbd> open the original</p>` : "";
+    if (!cur) {
+      const unrev = unreviewed(pool);
+      return `<section class="reader reader-empty" aria-label="Story"><button type="button" class="pane-back" data-goto="feed">‹ Stories</button>
+        <div><h2>${unrev ? `${unrev} to review` : pool.length ? "Everything here is reviewed" : "No stories"}</h2>
+        <p class="muted">${pool.length ? "Pick a story from the list." : "Try a longer date range or another filter."}</p>
+        ${unrev && can("tag_items") ? `<button type="button" class="btn primary" data-start>Start reviewing</button>` : ""}${keys}</div></section>`;
+    }
+    return `<section class="reader" aria-label="Story"><button type="button" class="pane-back" data-goto="feed">‹ Stories</button>
+      <ol class="items">${card(cur)}</ol>${keys}</section>`;
+  }
+
+  // the next story still to review after `id` (wrapping round), among the rows you can see
+  const visibleIds = () => $$("#main .row[data-pick]").filter((el) => el.offsetParent !== null).map((el) => el.dataset.pick);
+  function nextUnreviewed(id) {
+    const ids = visibleIds(), at = ids.indexOf(id);
+    const order = [...ids.slice(at + 1), ...ids.slice(0, Math.max(at, 0))];
+    return order.find((x) => !state.items.find((i) => i.id === x)?.relevance) || "";
+  }
+  function pick(id, { focus = false } = {}) {
+    state.selItem = id; state.pane = "reader";
+    render();
+    if (focus) $(`#main [data-pick="${CSS.escape(id)}"]`)?.focus({ preventScroll: true });
+  }
+  // rate a story; the first rating moves you on to the next story still to review
+  function rate(id, value) {
+    const it = state.items.find((i) => i.id === id);
+    if (!it || !can("tag_items")) return;
+    const next = it.relevance === value ? null : value;
+    if (!it.relevance && next) { const nx = nextUnreviewed(id); if (nx) { state.selItem = nx; state.pane = "reader"; } }
+    return save(id, { relevance: next });
   }
 
   // ---------- Scan type / News type dropdowns ----------
@@ -515,11 +595,6 @@
     });
   }
 
-  function updateToggleAll() {
-    const all = $$("#main details.pao");
-    $("#toggle-all").textContent = all.length && all.every((d) => d.open) ? "Collapse all" : "Expand all";
-  }
-
   function card(it) {
     const ro = can("tag_items") ? "" : " disabled";
     const reviewed = it.reviewed_by ? `<span class="muted small">by ${esc(it.reviewed_by.split("@")[0])} ${ago(it.reviewed_at)}</span>` : "";
@@ -552,10 +627,10 @@
       ${aiNote}
       <div class="actions">
         <div class="seg" role="group" aria-label="Relevance">
-          <button type="button" class="${sug("high")}" data-rel="high" aria-pressed="${it.relevance === "high"}" title="Matters to CAPA's regional work - goes in the brief's Key developments"${ro}>High</button>
-          <button type="button" class="${sug("medium")}" data-rel="medium" aria-pressed="${it.relevance === "medium"}" title="Worth knowing - goes in the brief's Other updates"${ro}>Med</button>
-          <button type="button" class="${sug("low")}" data-rel="low" aria-pressed="${it.relevance === "low"}" title="Kept for the record (e.g. a single-country issue) - tracker only, not in the brief"${ro}>Low</button>
-          <button type="button" class="${sug("none")}" data-rel="none" aria-pressed="${it.relevance === "none"}" title="Not relevant to CAPA - hidden by default, cleaned up after 12 months"${ro}>No relevance</button>
+          <button type="button" class="${sug("high")}" data-rel="high" data-key="1" aria-pressed="${it.relevance === "high"}" title="Matters to CAPA's regional work - goes in the brief's Key developments"${ro}>High</button>
+          <button type="button" class="${sug("medium")}" data-rel="medium" data-key="2" aria-pressed="${it.relevance === "medium"}" title="Worth knowing - goes in the brief's Other updates"${ro}>Med</button>
+          <button type="button" class="${sug("low")}" data-rel="low" data-key="3" aria-pressed="${it.relevance === "low"}" title="Kept for the record (e.g. a single-country issue) - tracker only, not in the brief"${ro}>Low</button>
+          <button type="button" class="${sug("none")}" data-rel="none" data-key="4" aria-pressed="${it.relevance === "none"}" title="Not relevant to CAPA - hidden by default, cleaned up after 12 months"${ro}>No relevance</button>
         </div>
         <input class="cat" list="cats" value="${esc(it.category || "")}" placeholder="Category" aria-label="Category"${ro}>
         <input class="notes" value="${esc(it.notes || "")}" placeholder="Notes" aria-label="Notes"${ro}>
@@ -737,7 +812,10 @@
         : "Couldn't save: " + e.message;
       toast(msg, true);
     }
-    render();
+    // typing a category or note changes nothing in the lists, so don't redraw (a redraw between pressing and
+    // releasing the mouse would swallow the click that made the box lose focus)
+    const quiet = ok && Object.keys(patch).every((k) => ["category", "notes", "reviewed_by", "reviewed_at"].includes(k));
+    if (!quiet) render();
     return ok;
   }
 
@@ -784,7 +862,6 @@
       if (d.matches?.("details.fold")) { d.open ? state.openFolds.add(d.dataset.fold) : state.openFolds.delete(d.dataset.fold); return; }
       if (!d.matches?.("details.pao")) return;
       d.open ? state.open.add(d.dataset.pao) : state.open.delete(d.dataset.pao);
-      updateToggleAll();
     }, true);
     // top bar: News goes back from whichever view is open; Status opens its page
     $("#news-btn").addEventListener("click", () => {
@@ -805,18 +882,12 @@
     // the profile menu closes after a choice, or when you click elsewhere
     $$(".profile-menu button").forEach((b) => b.addEventListener("click", () => ($("#profile").open = false)));
     document.addEventListener("click", (e) => { if ($("#profile").open && !$("#profile").contains(e.target)) $("#profile").open = false; });
-    $("#toggle-all").addEventListener("click", () => {
-      const all = $$("#main details.pao"), open = !all.every((d) => d.open);
-      all.forEach((d) => { d.open = open; open ? state.open.add(d.dataset.pao) : state.open.delete(d.dataset.pao); });
-      updateToggleAll();
-    });
-    // a link to #pao-xyz (e.g. from the brief) opens that PAO
+    // a link to #pao-xyz (e.g. from the brief) shows that organisation's stories
     const openFromHash = () => {
       const m = location.hash.match(/^#pao-(.+)$/);
       if (!m) return;
-      state.open.add(decodeURIComponent(m[1]));
-      const d = document.getElementById("pao-" + decodeURIComponent(m[1]));
-      if (d) { d.open = true; d.scrollIntoView({ block: "start" }); }
+      state.selPao = decodeURIComponent(m[1]); state.selItem = ""; state.pane = "feed";
+      render();
     };
     window.addEventListener("hashchange", openFromHash);
     state.openFromHash = openFromHash;
@@ -831,6 +902,26 @@
       });
     });
     document.addEventListener("click", (e) => { if (!e.target.closest(".multi")) $$(".multi[open]").forEach((d) => (d.open = false)); });
+    // keyboard triage on the News tab: J/K (or the arrows on the list) move, 1-4 rate, O opens the original
+    document.addEventListener("keydown", (e) => {
+      if (e.metaKey || e.ctrlKey || e.altKey || $(".layout").hidden || document.querySelector("dialog[open], .multi[open], .more[open]")) return;
+      const t = e.target;
+      if (t.closest?.("input, select, textarea, [contenteditable]")) return;
+      const onRow = !!t.closest?.(".row");
+      const key = e.key.toLowerCase();
+      const step = key === "j" || (onRow && e.key === "ArrowDown") ? 1 : key === "k" || (onRow && e.key === "ArrowUp") ? -1 : 0;
+      if (step) {
+        const ids = visibleIds(); if (!ids.length) return;
+        const at = ids.indexOf(state.selItem);
+        e.preventDefault();
+        return pick(ids[Math.min(ids.length - 1, Math.max(0, at < 0 ? (step > 0 ? 0 : ids.length - 1) : at + step))], { focus: true });
+      }
+      const cur = state.items.find((i) => i.id === state.selItem);
+      if (!cur) return;
+      const rating = { 1: "high", 2: "medium", 3: "low", 4: "none" }[e.key];
+      if (rating) { e.preventDefault(); return rate(cur.id, rating); }
+      if (key === "o" && cur.url) { e.preventDefault(); window.open(cur.url, "_blank", "noopener"); }
+    });
     // the More menu closes when you pick something, click elsewhere, or press Escape (and never stays open beside a filter menu)
     const more = $("#more-menu");
     more.addEventListener("toggle", () => { if (more.open) $$(".multi[open]").forEach((d) => (d.open = false)); });
@@ -844,11 +935,15 @@
 
     $("#main").addEventListener("click", async (e) => {
       const rel = e.target.closest("[data-rel]");
-      if (rel) {
-        const id = rel.closest(".item").dataset.id;
-        const it = state.items.find((i) => i.id === id);
-        return save(id, { relevance: it.relevance === rel.dataset.rel ? null : rel.dataset.rel });
-      }
+      if (rel) return rate(rel.closest(".item").dataset.id, rel.dataset.rel);
+      const src = e.target.closest("[data-src]");
+      if (src) { state.selPao = src.dataset.src; state.selItem = ""; state.pane = "feed"; return render(); }
+      if (e.target.closest("[data-src-empty]")) { state.showEmpty = !state.showEmpty; return render(); }
+      const row = e.target.closest("[data-pick]");
+      if (row) return pick(row.dataset.pick);
+      const go = e.target.closest("[data-goto]");
+      if (go) { state.pane = go.dataset.goto; return render(); }
+      if (e.target.closest("[data-start]")) { const nx = nextUnreviewed(""); return nx && pick(nx); }
       const add = e.target.closest("[data-add]");
       if (add) return openAdd(add.dataset.add);
       const rm = e.target.closest("[data-remove]");
