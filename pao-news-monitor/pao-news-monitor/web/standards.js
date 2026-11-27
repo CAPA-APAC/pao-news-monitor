@@ -1,4 +1,4 @@
-/* Stakeholder Project Tracker (the Standards tab) - what the standard setters (IAASB, IESBA, IASB, ISSB, IPSASB ...) are working on, and when.
+/* Projects Tracker (the Standards tab) - what the standard setters (IAASB, IESBA, IASB, ISSB, IPSASB ...) are working on, and when.
  *
  * Two views of the same data (supabase/update-23.sql: std_projects = a standard, std_events = its dates):
  *   Calendar      a month grid. A period (exposure draft + call for comments) is a bar; a meeting, an issue date or an
@@ -41,7 +41,7 @@
 
   // ---------- data ----------
   const missing = (e) => /does not exist|schema cache|relation|42P01|PGRST20/i.test(`${e?.code || ""} ${e?.message || ""}`);
-  const NEEDS_UPDATE = "The Stakeholder Project Tracker needs a quick database update (supabase/update-23.sql) - ask your admin.";
+  const NEEDS_UPDATE = "The Projects Tracker needs a quick database update (supabase/update-23.sql) - ask your admin.";
 
   async function load() {
     S.error = "";
@@ -181,7 +181,7 @@
     const groups = S.setters.filter((s) => (!S.paos.size || S.paos.has(s.id)) && (s.active !== false || S.projects.some((p) => p.pao_id === s.id)));
     const shown = groups.flatMap((s) => S.projects.filter((p) => p.pao_id === s.id && (!S.project || p.id === S.project)));
     box.innerHTML = (shown.length > 1 ? `<div class="std-bulk"><button type="button" class="btn small" data-fold-all="open">Expand all</button><button type="button" class="btn small" data-fold-all="close">Collapse all</button>
-      <span class="muted small">${shown.length} standards. Open one to see its progress line.</span></div>` : "") + groups.map((s) => {
+      <span class="muted small">${shown.length} standards. Click a standard setter or a standard to fold or open it.</span></div>` : "") + groups.map((s) => {
       let list = S.projects.filter((p) => p.pao_id === s.id && (!S.project || p.id === S.project));
       const rank = (p) => (p.status === "active" ? 0 : 1);
       list = list.sort((a, b) => rank(a) - rank(b) || a.title.localeCompare(b.title));
@@ -394,8 +394,9 @@
       if (b.dataset.day) return dayList(b.dataset.day);
       if (b.dataset.editStandard) return standardDialog(b.dataset.editStandard);
       if (b.dataset.foldAll) {
-        S.openCards = new Set(b.dataset.foldAll === "open" ? S.projects.map((p) => p.id) : []);
-        S.closedSetters = new Set();
+        const open = b.dataset.foldAll === "open";
+        S.openCards = new Set(open ? S.projects.map((p) => p.id) : []);
+        S.closedSetters = new Set(open ? [] : S.setters.map((x) => x.id));   // Collapse all folds the standard setters too: just their names and counts are left
         return renderStandards();
       }
       if (b.dataset.addFor) return dateDialog({ project: b.dataset.addFor, type: b.dataset.addType });

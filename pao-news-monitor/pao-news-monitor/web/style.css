@@ -672,6 +672,11 @@ dialog.zoom img { display: block; max-width: 100%; max-height: calc(100vh - 120p
 .std-pao { display: grid; gap: 10px; margin-top: 14px; }
 .std-pao > summary { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; cursor: pointer; padding: 4px 0; }
 .std-pao > summary h3 { display: inline; font-size: 18px; margin: 0; }
+.std-pao > summary { list-style: none; }
+.std-pao > summary::-webkit-details-marker { display: none; }
+.std-pao > summary::before { content: ""; width: 8px; height: 8px; flex: none; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted); transform: rotate(-45deg); transition: transform .15s; margin: 0 4px 0 2px; }
+.std-pao[open] > summary::before { transform: rotate(45deg); }
+.std-pao > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
 .std-empty { margin: 0 0 4px 4px; }
 .std-card { gap: 6px; margin-top: 10px; }
 .std-card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px 16px; flex-wrap: wrap; }
@@ -715,7 +720,7 @@ span.std-node { cursor: default; }
 @media (max-width: 640px) { .std-cal { min-width: 700px; } .std-scroll-hint { display: block; } }
 @media (prefers-color-scheme: dark) { .std-chip[aria-pressed="true"], .std-views .btn[aria-pressed="true"] { color: #0b1d1c; } .std-type[aria-pressed="true"] { color: var(--ink); } }
 
-/* ---- Stakeholder Project Tracker: By standard, each standard folds ---- */
+/* ---- Projects Tracker: By standard, each standard folds ---- */
 .std-bulk { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
 .std-fold > summary { list-style: none; cursor: pointer; display: grid; grid-template-columns: 16px minmax(0, 1fr) auto auto; gap: 4px 12px; align-items: center; }
 .std-fold > summary::-webkit-details-marker { display: none; }
