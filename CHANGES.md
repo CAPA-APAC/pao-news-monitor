@@ -2,6 +2,9 @@
 
 Plain-language log of what changed and why, for anyone who isn't reading the code. One entry per fix or feature, newest first. See the User Guide for how to use each thing; see `_bmad-output/.../addendum.md` for technical detail.
 
+## 2026-11-27 — IFRS 16 review finished, added to the Projects Tracker
+- The IASB finished its post-implementation review of IFRS 16 on 23 Nov 2026: IFRS 16 is working as intended, with areas for targeted improvement. The project "Targeted improvements to IFRS 16 Leases" now says what will be explored, links to the IFRS Foundation page, and has the 23 Nov date on the calendar. Added with `supabase/update-ifrs16-pir.sql` (paste into the Supabase SQL editor and Run).
+
 ## 2026-11-27 — "Projects Tracker", and the standard setters fold too
 - The tab is now called **Projects Tracker** (was "Stakeholder Project Tracker"). Only the name changed.
 - In **By standard**, each standard setter (IASB, IAASB, IESBA ...) now has an arrow and folds like the standards under it. **Collapse all** folds everything down to the setters' names and counts; **Expand all** opens everything.
