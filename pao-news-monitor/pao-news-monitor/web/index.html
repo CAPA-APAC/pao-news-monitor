@@ -80,7 +80,7 @@
     <section id="brief-view" class="brief-view" hidden>
       <div class="admin-head">
         <h2>Brief</h2>
-        <button class="btn" id="brief-back" type="button">← Back to news</button>
+        <button class="btn" id="brief-back" type="button" hidden>← Back to news</button><!-- not shown: the News tab presses it -->
       </div>
       <div class="brief-layout">
         <div class="panel brief-side">
@@ -114,7 +114,7 @@
     <section id="status-view" class="status-view" hidden>
       <div class="admin-head">
         <h2>Status</h2>
-        <button class="btn" id="status-back" type="button">← Back to news</button>
+        <button class="btn" id="status-back" type="button" hidden>← Back to news</button><!-- not shown: the News tab presses it -->
       </div>
       <div class="status-cards">
         <div class="panel status-card">
@@ -150,7 +150,7 @@
         <div class="std-actions">
           <button class="btn primary std-edit-only" id="std-add-date" type="button" hidden>+ Add date</button>
           <button class="btn std-edit-only" id="std-add-standard" type="button" hidden>+ Add standard</button>
-          <button class="btn" id="standards-back" type="button">← Back to news</button>
+          <button class="btn" id="standards-back" type="button" hidden>← Back to news</button><!-- not shown: the News tab presses it -->
         </div>
       </div>
       <p class="muted small">What the standard setters are working on, and when. Dates are added by hand or read from the setters' emails.</p>
@@ -197,7 +197,7 @@
     <section id="ask-view" class="ask-view" hidden>
       <div class="admin-head">
         <h2>Ask AI</h2>
-        <button class="btn" id="ask-back" type="button">← Back to news</button>
+        <button class="btn" id="ask-back" type="button" hidden>← Back to news</button><!-- not shown: the News tab presses it -->
       </div>
       <p class="muted small">Ask about one PAO, or pick <b>Whole region</b> to compare across all of them. Answers are grounded only in what the monitor has collected.</p>
       <div id="ai-demo" class="error-box" hidden>Ask AI needs a live database - it isn't available in demo mode.</div>
@@ -376,19 +376,26 @@
           <div class="multi-tools"><button type="button" data-multi="all">All</button><button type="button" data-multi="none">None</button></div>
         </div>
       </details>
-      <a id="ocr-link" class="btn ghost edit-only" href="ocr.html" title="Turn screenshots of posts into tracker items">OCR</a>
-      <button id="import-btn" class="btn ghost edit-only" type="button" title="Import items from an Excel or CSV file">Import</button>
-      <button id="run-news" class="btn" type="button" hidden title="Check every PAO's website, Google News and the email inbox now (admins)">Update news</button>
-      <button id="refresh" class="btn ghost icon-btn" type="button" title="Refresh" aria-label="Refresh">
-        <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18"><path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v5h-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </button>
-      <button id="toggle-all" class="btn ghost" type="button">Expand all</button>
-      <button id="export" class="btn ghost" type="button" title="Download what's on screen as a spreadsheet">Export CSV</button>
+      <div class="filters-end">
       <label class="search" id="search-wrap" title="Search titles, notes and categories">
         <span class="sr-only">Search</span>
         <input id="f-search" type="search" placeholder="Search" aria-label="Search titles, notes, categories">
         <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.5"/><path d="M15.5 15.5 21 21" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
       </label>
+      <button id="run-news" class="btn primary" type="button" hidden title="Check every PAO's website, Google News and the email inbox now (admins)">Update news</button>
+      <button id="refresh" class="btn ghost icon-btn" type="button" title="Refresh" aria-label="Refresh">
+        <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18"><path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v5h-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <details class="more" id="more-menu">
+        <summary class="btn ghost" aria-haspopup="menu">More <svg class="chev" aria-hidden="true" viewBox="0 0 24 24" width="14" height="14"><path d="m6 9 6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></summary>
+        <div class="more-panel" role="menu">
+          <button id="toggle-all" class="menu-item" type="button" role="menuitem">Expand all</button>
+          <button id="export" class="menu-item" type="button" role="menuitem" title="Download what's on screen as a spreadsheet">Export CSV</button>
+          <a id="ocr-link" class="menu-item edit-only" href="ocr.html" role="menuitem" title="Turn screenshots of posts into tracker items">OCR from screenshots</a>
+          <button id="import-btn" class="menu-item edit-only" type="button" role="menuitem" title="Import items from an Excel or CSV file">Import from Excel / CSV</button>
+        </div>
+      </details>
+      </div>
     </div>
 
     <p class="run-status small" id="run-news-status" hidden></p>

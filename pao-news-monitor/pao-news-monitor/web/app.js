@@ -822,7 +822,7 @@
     state.openFromHash = openFromHash;
     // dropdown menus: All / None buttons, close when clicking elsewhere or pressing Esc, one open at a time
     $$(".multi").forEach((d) => {
-      d.addEventListener("toggle", () => { if (d.open) $$(".multi").forEach((o) => { if (o !== d) o.open = false; }); });
+      d.addEventListener("toggle", () => { if (d.open) { $$(".multi").forEach((o) => { if (o !== d) o.open = false; }); $("#more-menu").open = false; } });
       d.addEventListener("click", (e) => {
         const b = e.target.closest("[data-multi]");
         if (!b) return;
@@ -831,6 +831,12 @@
       });
     });
     document.addEventListener("click", (e) => { if (!e.target.closest(".multi")) $$(".multi[open]").forEach((d) => (d.open = false)); });
+    // the More menu closes when you pick something, click elsewhere, or press Escape (and never stays open beside a filter menu)
+    const more = $("#more-menu");
+    more.addEventListener("toggle", () => { if (more.open) $$(".multi[open]").forEach((d) => (d.open = false)); });
+    more.addEventListener("click", (e) => { if (e.target.closest(".more-panel")) more.open = false; });
+    document.addEventListener("click", (e) => { if (more.open && !more.contains(e.target)) more.open = false; });
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape" && more.open) { more.open = false; more.querySelector("summary").focus(); } });
     document.addEventListener("keydown", (e) => { if (e.key === "Escape") $$(".multi[open]").forEach((d) => (d.open = false)); });
     $("#refresh").addEventListener("click", reload);
     $("#export").addEventListener("click", exportCsv);
