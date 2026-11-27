@@ -31,27 +31,42 @@ def wcoa(n):
     return [item(i, titles[i % len(titles)] + ("" if i < len(titles) else f" ({i})")) for i in range(n)]
 
 
-def test_fifteen_articles_about_one_event_become_three_and_a_fold():
+def test_fifteen_articles_about_one_event_become_one_and_a_fold():
     items = wcoa(15)
     r = fold(items)
-    assert len(r["shown"]) == 3 and len(r["groups"]) == 1
+    assert len(r["shown"]) == 1 and len(r["groups"]) == 1
     g = r["groups"][0]
-    assert g["key"] == "WCOA" and g["label"].startswith("WCOA") and len(g["ids"]) == 12
+    assert g["key"] == "WCOA" and g["label"].startswith("WCOA") and len(g["ids"]) == 14
     assert sorted(r["shown"] + g["ids"]) == sorted(i["id"] for i in items)          # nothing lost
 
 
 def test_korean_and_spelled_out_names_count_as_the_same_event():
     r = fold([item(1, "세계회계사대회 개막"), item(2, "World Congress of Accountants opens"), item(3, "WCOA day one"), item(4, "Seoul WCOA keynote"), item(5, "WCOA ends"), item(6, "Other")])
-    assert len(r["groups"]) == 1 and len(r["groups"][0]["ids"]) == 2 and 6 in r["shown"]
+    assert len(r["groups"]) == 1 and len(r["groups"][0]["ids"]) == 4 and 6 in r["shown"]
 
 
-def test_a_few_articles_are_left_alone():
-    r = fold(wcoa(4))
-    assert r["groups"] == [] and len(r["shown"]) == 4
+def test_two_articles_about_a_known_event_are_left_alone():
+    r = fold(wcoa(2))
+    assert r["groups"] == [] and len(r["shown"]) == 2
 
 
-def test_five_articles_is_the_smallest_group_and_folds_two():
-    r = fold(wcoa(5))
+def test_three_articles_about_a_known_event_fold_to_one():
+    r = fold(wcoa(3))
+    assert len(r["shown"]) == 1 and len(r["groups"][0]["ids"]) == 2
+
+
+def test_the_wcoa_headlines_seen_at_kicpa_are_one_event():
+    r = fold([item(1, "‘Olympics of Accountants’ World Accountants Conference successfully concluded... First held in Korea"),
+              item(2, "‘Olympics of accountants’ WCOA 2026 successfully completed... Opened for the first time in Seoul"),
+              item(3, "‘Olympics of accountants’ WCOA 2026 successfully completed... held in Korea for the first time in 122-year history"),
+              item(4, "Audit reform bill passes")])
+    assert len(r["groups"]) == 1 and len(r["groups"][0]["ids"]) == 2 and 4 in r["shown"]
+
+
+def test_a_guessed_event_still_needs_five_articles_and_keeps_three():
+    four = [item(i, f"ZEBRAX summit news {i}") for i in range(4)]
+    assert fold(four)["groups"] == []
+    r = fold([item(i, f"ZEBRAX summit news {i}") for i in range(5)])
     assert len(r["shown"]) == 3 and len(r["groups"][0]["ids"]) == 2
 
 
@@ -68,7 +83,11 @@ def test_the_best_rated_stay_visible_and_order_is_kept():
     items = wcoa(8)
     items[6]["ai_relevance"], items[7]["ai_relevance"], items[1]["ai_relevance"] = "high", "high", "medium"
     r = fold(items)
-    assert r["shown"] == [1, 6, 7]                                   # the three best, still newest-first as given
+    assert r["shown"] == [7]                                         # the best rated (newest of the two High) stays; the rest fold
+    # a guessed event keeps its three best, in the order given
+    g = [item(i, f"ZEBRAX summit news {i}") for i in range(8)]
+    g[6]["ai_relevance"], g[7]["ai_relevance"], g[1]["ai_relevance"] = "high", "high", "medium"
+    assert fold(g)["shown"] == [1, 6, 7]
 
 
 def test_an_organisations_own_name_is_not_an_event():

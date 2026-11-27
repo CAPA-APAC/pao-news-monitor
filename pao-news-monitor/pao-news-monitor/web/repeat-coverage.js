@@ -7,7 +7,7 @@
  * it only changes how the list is laid out, and it can be switched off ("Fold repeated coverage").
  *
  * What counts as one event, per organisation:
- *   - a named event listed in EVENTS below (WCOA, also in Korean), or
+ *   - a named event listed in EVENTS below (WCOA, also in Korean and as "Olympics of accountants"): folds from 3 articles, 1 stays visible, or
  *   - a capitalised name (4-8 capitals, like WCOA or ASEAN) used in at least MIN_GROUP of that organisation's headlines.
  *     Names of organisations, the usual standard-setter and accounting acronyms (STOP) and shouty all-capitals headlines
  *     never count.
@@ -21,9 +21,11 @@
   const KEEP = 3;          // how many of a group stay visible
   const MIN_FOLDED = 2;    // folding one article would be pointless
 
-  // known events: key, what to call it, how to recognise it in a headline
+  // known events: key, what to call it, how to recognise it in a headline.
+  // A known event folds sooner than a guessed one: from `min` articles, and only `keep` stay visible.
   const EVENTS = [
-    { key: "WCOA", label: "WCOA (World Congress of Accountants)", re: /\bWCOA\b|world congress of accountants|세계회계사대회/i },
+    { key: "WCOA", label: "WCOA (World Congress of Accountants)", min: 3, keep: 1,
+      re: /\bWCOA\b|world congress of accountants|world accountants conference|olympics of accountants|세계회계사대회|회계사 올림픽/i },
   ];
 
   // capitalised words that are NOT events: standard setters, regulators, and common abbreviations
@@ -62,7 +64,8 @@
       }
     }
     const out = {};
-    for (const [key, h] of [...hits].filter(([, h]) => h.ids.length >= MIN_GROUP).sort((a, b) => b[1].ids.length - a[1].ids.length)) {
+    const minFor = (key) => EVENTS.find((e) => e.key === key)?.min ?? MIN_GROUP;
+    for (const [key, h] of [...hits].filter(([k, h]) => h.ids.length >= minFor(k)).sort((a, b) => b[1].ids.length - a[1].ids.length)) {
       for (const id of h.ids) if (!(id in out)) out[id] = { key, label: h.label };
     }
     return out;
@@ -80,7 +83,7 @@
     for (const g of byKey.values()) {
       const ranked = g.items.slice().sort((a, b) => (b.relevance ? 1 : 0) - (a.relevance ? 1 : 0)      // staff-reviewed first
         || (LEVEL[eff(b)] ?? -1) - (LEVEL[eff(a)] ?? -1) || String(b.published_at || b.first_seen_at || "").localeCompare(String(a.published_at || a.first_seen_at || "")));
-      const keep = new Set(ranked.slice(0, KEEP).map((it) => it.id));
+      const keep = new Set(ranked.slice(0, EVENTS.find((e) => e.key === g.key)?.keep ?? KEEP).map((it) => it.id));
       const folded = g.items.filter((it) => !keep.has(it.id));
       if (folded.length < MIN_FOLDED) continue;
       for (const it of folded) hidden.add(it.id);
