@@ -2,6 +2,14 @@
 
 Plain-language log of what changed and why, for anyone who isn't reading the code. One entry per fix or feature, newest first. See the User Guide for how to use each thing; see `_bmad-output/.../addendum.md` for technical detail.
 
+## 2026-11-27 — News tab redesign (test): a three-pane triage desk
+- **Three panes.** Organisations on the left (only those with stories, each with how many are still to review; the ones with nothing fold into one link), the stories in the middle (newest first, each with a colour bar and a word: High, Medium, Low, To review), and the story you picked on the right, big, with the AI suggestion and the rating buttons.
+- **Rate from the keyboard.** J / K move between stories, **1 2 3 4** rate High / Medium / Low / No relevance, **O** opens the original. Rating a story you haven't reviewed yet takes you to the next one still to review ("Start reviewing" begins at the top).
+- **Same things, new place.** Category, notes, type, translate, move, remove, edit title, "+ Add item", LinkedIn / Facebook and the WCOA fold all work as before. The Expand all button is gone (there is nothing to expand), and Export CSV, OCR and Import stay in More.
+- **Phone.** The panes become a drill-in: Organisations > Stories > Story, with ‹ Back links.
+- **Wider pages** (1320px) and a slimmer top bar on every tab, and the teal buttons are now readable in dark mode (dark text on the light teal).
+- Typing in Category or Notes and then clicking elsewhere no longer swallows that click.
+
 ## 2026-11-27 — Tidier look across every tab
 - **One page width.** News, Brief, Projects Tracker, Ask AI and Status now share the same width and left edge as the CAPA logo, so the page no longer jumps when you switch tabs.
 - **News toolbar.** It now holds just the filters, search, **Update news** and refresh. Expand all, Export CSV, OCR and Import moved into a **More** menu.
