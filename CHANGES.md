@@ -2,6 +2,12 @@
 
 Plain-language log of what changed and why, for anyone who isn't reading the code. One entry per fix or feature, newest first. See the User Guide for how to use each thing; see `_bmad-output/.../addendum.md` for technical detail.
 
+## 2026-11-27 — Tidier look across every tab
+- **One page width.** News, Brief, Projects Tracker, Ask AI and Status now share the same width and left edge as the CAPA logo, so the page no longer jumps when you switch tabs.
+- **News toolbar.** It now holds just the filters, search, **Update news** and refresh. Expand all, Export CSV, OCR and Import moved into a **More** menu.
+- **Phone.** The logo and account sit on one row and the tabs on a single row under them (swipe sideways if they don't all fit), instead of four stacked rows.
+- **Easier to read.** Dropdown and input outlines are darker so they stand out, and the smallest text went from 11px to 12px. Colours, logo and features are unchanged.
+
 ## 2026-11-27 — WCOA articles fold sooner
 - Three articles about the same WCOA story were all still showing under KICPA, because folding only started at five. For WCOA (also "World Accountants Conference", "Olympics of accountants" and the Korean names) it now starts at **three** articles and **only the best one** stays visible; the rest sit in the "+N more about WCOA" row. Anything you marked High or Medium, or put a note on, still always stays visible. Events the monitor spots by itself still need five articles and keep three.
 
