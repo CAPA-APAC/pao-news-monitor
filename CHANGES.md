@@ -2,13 +2,16 @@
 
 Plain-language log of what changed and why, for anyone who isn't reading the code. One entry per fix or feature, newest first. See the User Guide for how to use each thing; see `_bmad-output/.../addendum.md` for technical detail.
 
-## 2026-11-27 — News tab redesign (test): a three-pane triage desk
-- **Three panes.** Organisations on the left (only those with stories, each with how many are still to review; the ones with nothing fold into one link), the stories in the middle (newest first, each with a colour bar and a word: High, Medium, Low, To review), and the story you picked on the right, big, with the AI suggestion and the rating buttons.
-- **Rate from the keyboard.** J / K move between stories, **1 2 3 4** rate High / Medium / Low / No relevance, **O** opens the original. Rating a story you haven't reviewed yet takes you to the next one still to review ("Start reviewing" begins at the top).
-- **Same things, new place.** Category, notes, type, translate, move, remove, edit title, "+ Add item", LinkedIn / Facebook and the WCOA fold all work as before. The Expand all button is gone (there is nothing to expand), and Export CSV, OCR and Import stay in More.
-- **Phone.** The panes become a drill-in: Organisations > Stories > Story, with ‹ Back links.
-- **Wider pages** (1320px) and a slimmer top bar on every tab, and the teal buttons are now readable in dark mode (dark text on the light teal).
-- Typing in Category or Notes and then clicking elsewhere no longer swallows that click.
+## 2026-11-27 — News tab simplified: PAOs on the left, tidy article rows on the right
+- **Two panes, not three.** The PAO list sits on the left (with a "Find a PAO" box and a plain count beside each name); the articles sit on the right, grouped under each PAO's name. Click a PAO to see only its articles; click a group's name to fold it.
+- **Compact rows.** Each article is one row: where it came from and when, the headline, and a small relevance dropdown (To review, High, Medium, Low, No relevance). Click a row to open it: the summary, category, type, notes, Open source, Translate, Edit title, Move and Remove are all in there. One row is open at a time; Done closes it.
+- **All / To review / Reviewed.** Three tabs above the list, each with a count, plus a Newest / Oldest sort. The old "Show" choices (High only, AI-suggested, Removed and so on) moved under the **Filters** button, which shows a number when one of them is narrowing the list.
+- **No more status colours here.** The green / amber / red dots and the coloured side bars are gone from the News tab; the **Status** tab is where you check whether the collector is healthy. The relevance dropdown is plain grey, with a light tint only for High and a dashed outline when it is still just the AI's suggestion.
+- **Search, dates and the rest.** Search is always visible. Refresh, Export CSV, OCR and Import are in the "..." menu beside Update news.
+- **Keyboard.** J / K move between articles, **1 2 3 4** rate (and open the next one still to review), **O** opens the original, Esc closes the open row. When the AI has a suggestion, the open row has an **Accept** button.
+- **Phone.** The PAO list becomes a drop-down above the articles; the Filters button keeps the toolbar to three tidy rows.
+- Repeated coverage of one event (for example WCOA) still folds into one "+N more" row.
+- Typing in Category or Notes and then clicking elsewhere no longer swallows that click. The teal buttons are readable in dark mode, and every tab uses the same 1320px page width.
 
 ## 2026-11-27 — Tidier look across every tab
 - **One page width.** News, Brief, Projects Tracker, Ask AI and Status now share the same width and left edge as the CAPA logo, so the page no longer jumps when you switch tabs.

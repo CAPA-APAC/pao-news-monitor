@@ -315,7 +315,30 @@
     </section>
 
     <div class="filters" role="search">
-      <details class="multi" id="date-pick">
+      <div class="nh-top">
+        <h2 class="nh-title">News</h2>
+        <div class="nh-actions">
+          <button id="run-news" class="btn primary" type="button" hidden title="Check every PAO's website, Google News and the email inbox now (admins)">Update news</button>
+          <details class="more" id="more-menu">
+            <summary class="btn ghost icon-btn" aria-haspopup="menu" aria-label="More actions" title="More">
+              <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18"><circle cx="5" cy="12" r="1.8" fill="currentColor"/><circle cx="12" cy="12" r="1.8" fill="currentColor"/><circle cx="19" cy="12" r="1.8" fill="currentColor"/></svg>
+            </summary>
+            <div class="more-panel" role="menu">
+              <button id="refresh" class="menu-item" type="button" role="menuitem" title="Load the latest items again">Refresh</button>
+              <button id="export" class="menu-item" type="button" role="menuitem" title="Download what's on screen as a spreadsheet">Export CSV</button>
+              <a id="ocr-link" class="menu-item edit-only" href="ocr.html" role="menuitem" title="Turn screenshots of posts into tracker items">OCR from screenshots</a>
+              <button id="import-btn" class="menu-item edit-only" type="button" role="menuitem" title="Import items from an Excel or CSV file">Import from Excel / CSV</button>
+            </div>
+          </details>
+        </div>
+      </div>
+      <div class="nh-tools">
+        <label class="search" id="search-wrap" title="Search titles, notes and categories">
+        <span class="sr-only">Search</span>
+        <input id="f-search" type="search" placeholder="Search" aria-label="Search titles, notes, categories">
+        <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.5"/><path d="M15.5 15.5 21 21" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+      </label>
+        <details class="multi" id="date-pick">
         <summary><span class="multi-label">Dates</span> <span class="multi-value" id="date-value">Last 30 days</span></summary>
         <div class="multi-panel cal-panel" role="dialog" aria-label="Choose dates">
           <div class="cal-presets" role="group" aria-label="Quick ranges">
@@ -334,10 +357,14 @@
           <p class="cal-hint" id="cal-hint">Click a start date, then an end date. The small number is how many items are dated that day.</p>
         </div>
       </details>
-      <label>Show
+        <button type="button" class="btn ghost" id="filters-toggle" aria-expanded="false" aria-controls="filters-more">Filters <span class="badge" id="filters-badge" hidden></span></button>
+      </div>
+      <div class="nh-more" id="filters-more" hidden>
+        <label>Show
         <select id="f-status">
           <option value="hide_not" selected>All except no relevance</option>
-          <option value="unreviewed">Unreviewed only</option>
+          <option value="unreviewed">To review (not yet rated)</option>
+          <option value="reviewed">Reviewed (rated by the team)</option>
           <option value="ai_unchecked">AI-suggested, not yet reviewed</option>
           <option value="ai_low_check">AI said Low / No - spot-check these</option>
           <option value="high_med">High + Medium (brief material)</option>
@@ -349,7 +376,7 @@
           <option value="removed">Removed (to restore)</option>
         </select>
       </label>
-      <details class="multi" id="scan-type">
+        <details class="multi" id="scan-type">
         <summary><span class="multi-label">Scan type</span> <span class="multi-value"></span></summary>
         <div class="multi-panel" role="group" aria-label="Scan type">
           <label><input type="checkbox" name="src" value="website" checked> Websites</label>
@@ -364,7 +391,7 @@
           <div class="multi-tools"><button type="button" data-multi="all">All</button><button type="button" data-multi="none">None</button></div>
         </div>
       </details>
-      <details class="multi" id="news-type">
+        <details class="multi" id="news-type">
         <summary><span class="multi-label">News type</span> <span class="multi-value"></span></summary>
         <div class="multi-panel" role="group" aria-label="News type">
           <label><input type="checkbox" name="kind" value="news" checked> News</label>
@@ -374,24 +401,6 @@
           <label><input type="checkbox" name="kind" value="comment" checked> Opportunities to comment</label>
           <label><input type="checkbox" name="kind" value="changes" checked> Leadership / contact changes</label>
           <div class="multi-tools"><button type="button" data-multi="all">All</button><button type="button" data-multi="none">None</button></div>
-        </div>
-      </details>
-      <div class="filters-end">
-      <label class="search" id="search-wrap" title="Search titles, notes and categories">
-        <span class="sr-only">Search</span>
-        <input id="f-search" type="search" placeholder="Search" aria-label="Search titles, notes, categories">
-        <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.5"/><path d="M15.5 15.5 21 21" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
-      </label>
-      <button id="run-news" class="btn primary" type="button" hidden title="Check every PAO's website, Google News and the email inbox now (admins)">Update news</button>
-      <button id="refresh" class="btn ghost icon-btn" type="button" title="Refresh" aria-label="Refresh">
-        <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18"><path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v5h-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </button>
-      <details class="more" id="more-menu">
-        <summary class="btn ghost" aria-haspopup="menu">More <svg class="chev" aria-hidden="true" viewBox="0 0 24 24" width="14" height="14"><path d="m6 9 6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></summary>
-        <div class="more-panel" role="menu">
-          <button id="export" class="menu-item" type="button" role="menuitem" title="Download what's on screen as a spreadsheet">Export CSV</button>
-          <a id="ocr-link" class="menu-item edit-only" href="ocr.html" role="menuitem" title="Turn screenshots of posts into tracker items">OCR from screenshots</a>
-          <button id="import-btn" class="menu-item edit-only" type="button" role="menuitem" title="Import items from an Excel or CSV file">Import from Excel / CSV</button>
         </div>
       </details>
       </div>
