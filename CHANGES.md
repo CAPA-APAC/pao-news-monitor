@@ -2,6 +2,9 @@
 
 Plain-language log of what changed and why, for anyone who isn't reading the code. One entry per fix or feature, newest first. See the User Guide for how to use each thing; see `_bmad-output/.../addendum.md` for technical detail.
 
+## 2026-11-27 — WCOA articles fold sooner
+- Three articles about the same WCOA story were all still showing under KICPA, because folding only started at five. For WCOA (also "World Accountants Conference", "Olympics of accountants" and the Korean names) it now starts at **three** articles and **only the best one** stays visible; the rest sit in the "+N more about WCOA" row. Anything you marked High or Medium, or put a note on, still always stays visible. Events the monitor spots by itself still need five articles and keep three.
+
 ## 2026-11-27 — "Projects Tracker", and the standard setters fold too
 - The tab is now called **Projects Tracker** (was "Stakeholder Project Tracker"). Only the name changed.
 - In **By standard**, each standard setter (IASB, IAASB, IESBA ...) now has an arrow and folds like the standards under it. **Collapse all** folds everything down to the setters' names and counts; **Expand all** opens everything.
